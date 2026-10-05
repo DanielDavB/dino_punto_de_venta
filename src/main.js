@@ -9,6 +9,7 @@ const estado = {
   productos: [],
   carrito: new Map(), // producto_id -> { producto, cantidad }
   categoria: 'Todas',
+  editando: null, // id del producto que se está editando en la tabla
 }
 
 function toast(msg, tipo = 'ok') {
@@ -78,9 +79,11 @@ async function cargarProductos() {
   if (error) return toast('No se pudieron cargar los productos', 'error')
   estado.productos = data.map((p) => ({ ...p, precio: Number(p.precio) }))
 
-  // Quitar del carrito productos que ya no existen
-  for (const id of estado.carrito.keys()) {
-    if (!estado.productos.some((p) => p.id === id)) estado.carrito.delete(id)
+  // Quitar del carrito productos que ya no existen y actualizar los editados
+  for (const [id, linea] of estado.carrito) {
+    const producto = estado.productos.find((p) => p.id === id)
+    if (producto) linea.producto = producto
+    else estado.carrito.delete(id)
   }
   renderMenu()
   renderProductos()
@@ -132,16 +135,30 @@ function renderProductos() {
   $('#lista-categorias').innerHTML = categorias().map((c) => `<option value="${escapar(c)}">`).join('')
   $('#productos-tbody').innerHTML = estado.productos.length
     ? estado.productos
-        .map(
-          (p) => `<tr>
+        .map((p) =>
+          p.id === estado.editando
+            ? `<tr class="editando" data-id="${p.id}">
+            <td><input name="nombre" value="${escapar(p.nombre)}" required maxlength="80" aria-label="Nombre" /></td>
+            <td><input name="categoria" value="${escapar(p.categoria)}" list="lista-categorias" maxlength="40" aria-label="Categoría" /></td>
+            <td><input name="precio" type="number" min="0" step="0.5" value="${p.precio}" required aria-label="Precio" /></td>
+            <td class="right acciones">
+              <button class="btn primary small" data-guardar="${p.id}">Guardar</button>
+              <button class="btn ghost small" data-cancelar>Cancelar</button>
+            </td>
+          </tr>`
+            : `<tr>
             <td>${escapar(p.nombre)}</td>
             <td><span class="tag">${escapar(p.categoria)}</span></td>
             <td>${dinero.format(p.precio)}</td>
-            <td class="right"><button class="btn danger small" data-eliminar="${p.id}">Eliminar</button></td>
+            <td class="right acciones">
+              <button class="btn ghost small" data-editar="${p.id}">Editar</button>
+              <button class="btn danger small" data-eliminar="${p.id}">Eliminar</button>
+            </td>
           </tr>`,
         )
         .join('')
     : '<tr><td colspan="4" class="muted">Aún no hay productos.</td></tr>'
+  $('#productos-tbody [name=nombre]')?.focus()
 }
 
 $('#producto-form').addEventListener('submit', async (e) => {
@@ -160,7 +177,34 @@ $('#producto-form').addEventListener('submit', async (e) => {
   cargarProductos()
 })
 
+async function guardarEdicion(fila) {
+  const id = Number(fila.dataset.id)
+  const nombre = fila.querySelector('[name=nombre]').value.trim()
+  const precioTexto = fila.querySelector('[name=precio]').value
+  const precio = Number(precioTexto)
+  const categoria = fila.querySelector('[name=categoria]').value.trim() || 'General'
+  if (!nombre || precioTexto === '' || !(precio >= 0)) return toast('Revisa el nombre y el precio', 'error')
+
+  const { error } = await supabase.from('productos').update({ nombre, precio, categoria }).eq('id', id)
+  if (error) return toast('No se pudo guardar el producto', 'error')
+  estado.editando = null
+  toast(`"${nombre}" actualizado`)
+  cargarProductos()
+}
+
 $('#productos-tbody').addEventListener('click', async (e) => {
+  const editar = e.target.closest('[data-editar]')
+  if (editar) {
+    estado.editando = Number(editar.dataset.editar)
+    return renderProductos()
+  }
+  if (e.target.closest('[data-cancelar]')) {
+    estado.editando = null
+    return renderProductos()
+  }
+  const guardar = e.target.closest('[data-guardar]')
+  if (guardar) return guardarEdicion(guardar.closest('tr'))
+
   const btn = e.target.closest('[data-eliminar]')
   if (!btn) return
   const id = Number(btn.dataset.eliminar)
@@ -171,6 +215,19 @@ $('#productos-tbody').addEventListener('click', async (e) => {
   if (error) return toast('No se pudo eliminar el producto', 'error')
   toast(`"${producto.nombre}" eliminado`)
   cargarProductos()
+})
+
+// Enter guarda y Escape cancela mientras se edita una fila
+$('#productos-tbody').addEventListener('keydown', (e) => {
+  const fila = e.target.closest('tr.editando')
+  if (!fila) return
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    guardarEdicion(fila)
+  } else if (e.key === 'Escape') {
+    estado.editando = null
+    renderProductos()
+  }
 })
 
 // ---------- Carrito ----------

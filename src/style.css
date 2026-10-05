@@ -147,6 +147,9 @@ label { display: block; font-size: 0.9rem; color: var(--muted); }
 .tabla { width: 100%; border-collapse: collapse; }
 .tabla th, .tabla td { padding: 10px 8px; border-bottom: 1px solid var(--borde); text-align: left; }
 .tabla th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
+.tabla .acciones { white-space: nowrap; }
+.tabla .acciones .btn + .btn { margin-left: 6px; }
+.tabla tr.editando input { margin: 0; width: 100%; }
 .tag { background: #eef6ee; color: var(--verde-oscuro); padding: 2px 8px; border-radius: 999px; font-size: 0.8rem; }
 
 /* Ventas */
