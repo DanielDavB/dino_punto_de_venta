@@ -1,4 +1,3 @@
-import './style.css'
 import { supabase } from './supabase.js'
 
 const $ = (sel) => document.querySelector(sel)

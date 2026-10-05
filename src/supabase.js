@@ -1,10 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '../vendor/supabase.js'
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-
-if (!url || !key) {
-  throw new Error('Faltan VITE_SUPABASE_URL o VITE_SUPABASE_PUBLISHABLE_KEY. Copia .env.example a .env')
-}
-
-export const supabase = createClient(url, key)
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)

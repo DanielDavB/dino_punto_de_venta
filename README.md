@@ -10,21 +10,12 @@ Punto de venta sencillo para el restaurante DinoTacos, conectado a su propio pro
 
 ## Cómo correrlo
 
-```bash
-npm install
-cp .env.example .env   # ya trae la URL y la clave pública del proyecto
-npm run dev
-```
+No necesita compilarse: son archivos estáticos (HTML, CSS y JS) que funcionan tal cual.
 
-Abre http://localhost:5173.
+- **En línea**: https://danieldavb.github.io/dino_punto_de_venta/ (GitHub Pages, modo *Deploy from a branch*; cada push se publica solo).
+- **En tu computadora**: `npm install` y `npm run dev`, luego abre http://localhost:5173.
 
-## Publicar en GitHub Pages
-
-El workflow `.github/workflows/deploy-pages.yml` compila y publica la app en cada push.
-
-1. En GitHub ve a **Settings → Pages** y en **Source** elige **GitHub Actions** (solo una vez).
-2. Haz push, o córrelo a mano en **Actions → Publicar en GitHub Pages → Run workflow**.
-3. La app queda en https://danieldavb.github.io/dino_punto_de_venta/
+La URL y la clave publicable de Supabase están en `src/config.js`. La librería de Supabase va incluida en `vendor/supabase.js`; para actualizarla: `npm update @supabase/supabase-js && npm run vendor`.
 
 ## Crear usuarios para el personal
 
