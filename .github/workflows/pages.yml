@@ -1,0 +1,41 @@
+name: Publicar en GitHub Pages
+
+# La app es estática: no se instala nada ni se compila, solo se suben los
+# archivos y se publican en un único job (un solo runner = menos espera).
+on:
+  push:
+    branches: [claude/github-pages-styles-xk4uib]
+    paths: ['index.html', 'src/**', 'vendor/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Si llega un push nuevo mientras se publica, se cancela el anterior
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            index.html
+            src
+            vendor
+          sparse-checkout-cone-mode: false
+      - run: mkdir _site && cp -r index.html src vendor _site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
