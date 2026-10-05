@@ -156,6 +156,15 @@ label { display: block; font-size: 0.9rem; color: var(--muted); }
 .ventas-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .resumen { display: flex; gap: 12px; align-items: baseline; }
 .resumen strong { font-size: 1.3rem; color: var(--verde-oscuro); }
+.ventas-vista { display: grid; gap: 16px; }
+.fecha-nav { display: flex; gap: 6px; align-items: center; }
+.fecha-nav input { width: auto; margin: 0; padding: 6px 10px; }
+.resumen { flex-wrap: wrap; margin: 8px 0 4px; }
+.dias-lista { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.dia { width: 100%; display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; text-align: left; padding: 10px 12px; border: 1px solid var(--borde); border-radius: 8px; background: #fff; font: inherit; cursor: pointer; }
+.dia:hover { background: #f6faf6; }
+.dia.active { border-color: var(--verde); background: #eef6ee; }
+.dia-nombre::first-letter { text-transform: uppercase; }
 .ventas-lista { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .ventas-lista li { padding: 10px 0; border-bottom: 1px solid var(--borde); display: grid; gap: 4px; }
 .venta-top { display: flex; gap: 10px; align-items: center; }

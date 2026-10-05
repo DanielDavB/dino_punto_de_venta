@@ -27,7 +27,7 @@
         <nav class="tabs">
           <button class="tab active" data-view="venta">Venta</button>
           <button class="tab" data-view="productos">Productos</button>
-          <button class="tab" data-view="ventas">Ventas del día</button>
+          <button class="tab" data-view="ventas">Ventas</button>
         </nav>
         <div class="user">
           <span id="user-email" class="muted"></span>
@@ -78,14 +78,24 @@
         </div>
       </main>
 
-      <!-- Vista: Ventas del día -->
-      <main id="view-ventas" class="view hidden">
+      <!-- Vista: Historial de ventas -->
+      <main id="view-ventas" class="view ventas-vista hidden">
         <div class="card">
           <div class="ventas-header">
-            <h2>Ventas de hoy</h2>
-            <div class="resumen" id="resumen"></div>
+            <h2 id="ventas-titulo">Ventas de hoy</h2>
+            <div class="fecha-nav">
+              <button class="btn ghost small" id="dia-anterior" aria-label="Día anterior">◀</button>
+              <input type="date" id="ventas-fecha" aria-label="Fecha" />
+              <button class="btn ghost small" id="dia-siguiente" aria-label="Día siguiente">▶</button>
+              <button class="btn ghost small" id="ir-hoy">Hoy</button>
+            </div>
           </div>
+          <div class="resumen" id="resumen"></div>
           <ul id="ventas-lista" class="ventas-lista"></ul>
+        </div>
+        <div class="card">
+          <h2>Últimos 30 días</h2>
+          <ul id="dias-lista" class="dias-lista"></ul>
         </div>
       </main>
     </div>

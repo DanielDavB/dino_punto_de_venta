@@ -63,7 +63,10 @@ document.querySelectorAll('.tab').forEach((tab) =>
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab))
     document.querySelectorAll('.view').forEach((v) => v.classList.add('hidden'))
     $(`#view-${tab.dataset.view}`).classList.remove('hidden')
-    if (tab.dataset.view === 'ventas') cargarVentas()
+    if (tab.dataset.view === 'ventas') {
+      cargarVentas(claveDia(new Date()))
+      cargarDiasRecientes()
+    }
   }),
 )
 
@@ -296,18 +299,54 @@ $('#cobrar').addEventListener('click', async () => {
 
 // ---------- Ventas del día ----------
 
-async function cargarVentas() {
-  const inicioDelDia = new Date()
-  inicioDelDia.setHours(0, 0, 0, 0)
+// Fechas en hora local del navegador, como 'YYYY-MM-DD'
+const claveDia = (fecha) =>
+  `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`
+const desdeClave = (clave) => {
+  const [a, m, d] = clave.split('-').map(Number)
+  return new Date(a, m - 1, d)
+}
+const sumarDias = (clave, n) => {
+  const fecha = desdeClave(clave)
+  fecha.setDate(fecha.getDate() + n)
+  return claveDia(fecha)
+}
+const nombreDia = (clave) => {
+  const hoy = claveDia(new Date())
+  if (clave === hoy) return 'hoy'
+  if (clave === sumarDias(hoy, -1)) return 'ayer'
+  return desdeClave(clave).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
+const DIAS_RECIENTES = 30
+
+async function cargarVentas(dia = $('#ventas-fecha').value || claveDia(new Date())) {
+  const hoy = claveDia(new Date())
+  if (dia > hoy) dia = hoy
+  $('#ventas-fecha').value = dia
+  $('#ventas-fecha').max = hoy
+  $('#dia-siguiente').disabled = dia >= hoy
+  $('#ventas-titulo').textContent = `Ventas de ${nombreDia(dia)}`
+  marcarDiaActivo()
+
   const { data, error } = await supabase
     .from('ventas')
     .select('id, total, metodo_pago, created_at, venta_items(nombre, cantidad, subtotal)')
-    .gte('created_at', inicioDelDia.toISOString())
+    .gte('created_at', desdeClave(dia).toISOString())
+    .lt('created_at', desdeClave(sumarDias(dia, 1)).toISOString())
     .order('created_at', { ascending: false })
   if (error) return toast('No se pudieron cargar las ventas', 'error')
+  // Evitar pintar una respuesta vieja si se cambió de día mientras cargaba
+  if ($('#ventas-fecha').value !== dia) return
 
   const total = data.reduce((s, v) => s + Number(v.total), 0)
-  $('#resumen').innerHTML = `<span>${data.length} ventas</span><strong>${dinero.format(total)}</strong>`
+  const porMetodo = {}
+  for (const v of data) porMetodo[v.metodo_pago] = (porMetodo[v.metodo_pago] ?? 0) + Number(v.total)
+  $('#resumen').innerHTML = `
+    <span>${data.length} ${data.length === 1 ? 'venta' : 'ventas'}</span>
+    <strong>${dinero.format(total)}</strong>
+    ${Object.entries(porMetodo)
+      .map(([m, t]) => `<span class="tag">${escapar(m)} ${dinero.format(t)}</span>`)
+      .join('')}`
   $('#ventas-lista').innerHTML = data.length
     ? data
         .map(
@@ -322,7 +361,52 @@ async function cargarVentas() {
           </li>`,
         )
         .join('')
-    : '<li class="muted">Todavía no hay ventas hoy.</li>'
+    : `<li class="muted">${dia === hoy ? 'Todavía no hay ventas hoy.' : 'No hubo ventas este día.'}</li>`
 }
+
+async function cargarDiasRecientes() {
+  const desde = sumarDias(claveDia(new Date()), -(DIAS_RECIENTES - 1))
+  const { data, error } = await supabase
+    .from('ventas')
+    .select('total, created_at')
+    .gte('created_at', desdeClave(desde).toISOString())
+    .order('created_at', { ascending: false })
+  if (error) return toast('No se pudo cargar el historial', 'error')
+
+  const dias = new Map() // 'YYYY-MM-DD' -> { ventas, total }, del más reciente al más viejo
+  for (const v of data) {
+    const clave = claveDia(new Date(v.created_at))
+    const d = dias.get(clave) ?? { ventas: 0, total: 0 }
+    d.ventas++
+    d.total += Number(v.total)
+    dias.set(clave, d)
+  }
+  $('#dias-lista').innerHTML = dias.size
+    ? [...dias]
+        .map(
+          ([clave, d]) => `<li><button class="dia" data-dia="${clave}">
+            <span class="dia-nombre">${escapar(nombreDia(clave))}</span>
+            <span class="muted">${d.ventas} ${d.ventas === 1 ? 'venta' : 'ventas'}</span>
+            <strong>${dinero.format(d.total)}</strong>
+          </button></li>`,
+        )
+        .join('')
+    : `<li class="muted">No hay ventas en los últimos ${DIAS_RECIENTES} días.</li>`
+  marcarDiaActivo()
+}
+
+function marcarDiaActivo() {
+  const dia = $('#ventas-fecha').value
+  document.querySelectorAll('#dias-lista .dia').forEach((b) => b.classList.toggle('active', b.dataset.dia === dia))
+}
+
+$('#ventas-fecha').addEventListener('change', (e) => e.target.value && cargarVentas(e.target.value))
+$('#dia-anterior').addEventListener('click', () => cargarVentas(sumarDias($('#ventas-fecha').value, -1)))
+$('#dia-siguiente').addEventListener('click', () => cargarVentas(sumarDias($('#ventas-fecha').value, 1)))
+$('#ir-hoy').addEventListener('click', () => cargarVentas(claveDia(new Date())))
+$('#dias-lista').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-dia]')
+  if (btn) cargarVentas(btn.dataset.dia)
+})
 
 iniciar()

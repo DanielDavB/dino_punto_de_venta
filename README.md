@@ -6,7 +6,7 @@ Punto de venta sencillo para el restaurante DinoTacos, conectado a su propio pro
 
 - **Venta**: tocas productos del menú para agregarlos a la orden, ajustas cantidades con − / +, quitas productos con ✕, eliges método de pago y cobras.
 - **Productos**: agregas productos al menú (nombre, precio, categoría) y los eliminas.
-- **Ventas del día**: lista de las ventas de hoy con su detalle y el total vendido.
+- **Ventas**: historial por día guardado en Supabase. Muestra las ventas de hoy con su detalle, el total y el desglose por método de pago; con ◀ ▶ o el calendario consultas cualquier día anterior, y la lista "Últimos 30 días" muestra el total de cada día (tócalo para ver su detalle).
 
 ## Cómo correrlo
 
