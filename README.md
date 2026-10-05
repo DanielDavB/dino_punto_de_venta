@@ -19,10 +19,14 @@ La URL y la clave publicable de Supabase están en `src/config.js`. La librería
 
 ## Crear usuarios para el personal
 
-Solo usuarios con sesión iniciada pueden ver o modificar datos. Para dar acceso a un empleado:
+Solo usuarios con sesión iniciada pueden ver o modificar datos. Para dar acceso a un empleado, en [Supabase → Authentication → Users](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/users):
 
-1. Entra a [Supabase → Authentication → Users](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/users).
-2. **Add user → Create new user**, escribe correo y contraseña, y marca **Auto Confirm User**.
+- **Add user → Send invitation**: le llega un correo; al abrir el enlace entra a la app y crea su contraseña.
+- **Add user → Create new user**: tú escribes correo y contraseña y marcas **Auto Confirm User**.
+
+Si alguien olvida su contraseña, toca **¿Olvidaste tu contraseña?** en la pantalla de acceso y recibe un correo para crear una nueva.
+
+Para que los enlaces de los correos abran la app, en [Authentication → URL Configuration](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/url-configuration) la **Site URL** debe ser `https://danieldavb.github.io/dino_punto_de_venta/` y esa misma dirección debe estar en **Redirect URLs**.
 
 ## Base de datos
 

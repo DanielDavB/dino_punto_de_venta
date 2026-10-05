@@ -17,6 +17,19 @@
         <label>Contraseña <input type="password" name="password" required autocomplete="current-password" /></label>
         <button type="submit" class="btn primary">Entrar</button>
         <p id="login-error" class="error"></p>
+        <button type="button" id="olvide" class="link">¿Olvidaste tu contraseña?</button>
+      </form>
+    </section>
+
+    <!-- Crear contraseña (al entrar con una invitación o para recuperarla) -->
+    <section id="nueva-clave" class="login hidden">
+      <form id="nueva-clave-form" class="card login-card">
+        <h1>🦖 DinoTacos</h1>
+        <p class="muted">Crea tu contraseña para <strong id="nueva-clave-email"></strong></p>
+        <label>Contraseña nueva <input type="password" name="password" required minlength="6" autocomplete="new-password" /></label>
+        <label>Repítela <input type="password" name="password2" required minlength="6" autocomplete="new-password" /></label>
+        <button type="submit" class="btn primary">Guardar y entrar</button>
+        <p id="nueva-clave-error" class="error"></p>
       </form>
     </section>
 

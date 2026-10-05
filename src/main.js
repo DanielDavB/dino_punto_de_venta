@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js'
+import { supabase, enlace } from './supabase.js'
 
 const $ = (sel) => document.querySelector(sel)
 const dinero = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
@@ -9,6 +9,7 @@ const estado = {
   productos: [],
   carrito: new Map(), // producto_id -> { producto, cantidad }
   categoria: 'Todas',
+  creandoClave: false, // sesión abierta desde un enlace de invitación o recuperación
   editando: null, // id del producto que se está editando en la tabla
 }
 
@@ -23,19 +24,34 @@ function toast(msg, tipo = 'ok') {
 // ---------- Sesión ----------
 
 async function iniciar() {
+  if (enlace.error) {
+    $('#login-error').textContent =
+      enlace.error === 'otp_expired'
+        ? 'El enlace del correo ya caducó o ya se usó. Pide uno nuevo.'
+        : 'No se pudo usar el enlace del correo. Pide uno nuevo.'
+  }
+  // Quien llega desde una invitación o desde "olvidé mi contraseña" debe crear una
+  estado.creandoClave = enlace.tipo === 'invite' || enlace.tipo === 'recovery'
   const { data } = await supabase.auth.getSession()
   mostrarSesion(data.session)
-  supabase.auth.onAuthStateChange((_evento, session) => mostrarSesion(session))
+  supabase.auth.onAuthStateChange((evento, session) => {
+    if (evento === 'PASSWORD_RECOVERY') estado.creandoClave = true
+    mostrarSesion(session)
+  })
 }
 
 let sesionActiva // undefined hasta la primera llamada, para que siempre se pinte una pantalla
 function mostrarSesion(session) {
   const usuario = session?.user?.id ?? null
-  if (usuario === sesionActiva) return
-  sesionActiva = usuario
-  $('#login').classList.toggle('hidden', !!session)
-  $('#app').classList.toggle('hidden', !session)
-  if (session) {
+  const pantalla = !session ? 'login' : estado.creandoClave ? 'nueva-clave' : 'app'
+  if (`${usuario}:${pantalla}` === sesionActiva) return
+  sesionActiva = `${usuario}:${pantalla}`
+  $('#login').classList.toggle('hidden', pantalla !== 'login')
+  $('#nueva-clave').classList.toggle('hidden', pantalla !== 'nueva-clave')
+  $('#app').classList.toggle('hidden', pantalla !== 'app')
+  if (pantalla === 'nueva-clave') {
+    $('#nueva-clave-email').textContent = session.user.email
+  } else if (pantalla === 'app') {
     $('#user-email').textContent = session.user.email
     cargarProductos()
   } else {
@@ -52,6 +68,30 @@ $('#login-form').addEventListener('submit', async (e) => {
     password: form.get('password'),
   })
   if (error) $('#login-error').textContent = 'Correo o contraseña incorrectos'
+})
+
+$('#olvide').addEventListener('click', async () => {
+  const email = $('#login-form [name=email]').value.trim()
+  if (!email) return ($('#login-error').textContent = 'Escribe tu correo y vuelve a tocar "¿Olvidaste tu contraseña?"')
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })
+  if (error) return ($('#login-error').textContent = 'No se pudo enviar el correo. Intenta en un momento.')
+  $('#login-error').textContent = ''
+  toast('Te enviamos un correo para crear una contraseña nueva')
+})
+
+$('#nueva-clave-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const form = new FormData(e.target)
+  const password = form.get('password')
+  $('#nueva-clave-error').textContent = ''
+  if (password !== form.get('password2')) return ($('#nueva-clave-error').textContent = 'Las contraseñas no coinciden')
+
+  const { data, error } = await supabase.auth.updateUser({ password })
+  if (error) return ($('#nueva-clave-error').textContent = 'No se pudo guardar la contraseña. Usa al menos 6 caracteres.')
+  e.target.reset()
+  estado.creandoClave = false
+  toast('Contraseña guardada')
+  mostrarSesion({ user: data.user })
 })
 
 $('#logout').addEventListener('click', () => supabase.auth.signOut())
