@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DinoTacos · Punto de venta</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦖</text></svg>" />
+  </head>
+  <body>
+    <!-- Pantalla de acceso -->
+    <section id="login" class="login hidden">
+      <form id="login-form" class="card login-card">
+        <h1>🦖 DinoTacos</h1>
+        <p class="muted">Punto de venta</p>
+        <label>Correo <input type="email" name="email" required autocomplete="username" /></label>
+        <label>Contraseña <input type="password" name="password" required autocomplete="current-password" /></label>
+        <button type="submit" class="btn primary">Entrar</button>
+        <p id="login-error" class="error"></p>
+      </form>
+    </section>
+
+    <!-- App -->
+    <div id="app" class="hidden">
+      <header class="topbar">
+        <div class="brand">🦖 DinoTacos</div>
+        <nav class="tabs">
+          <button class="tab active" data-view="venta">Venta</button>
+          <button class="tab" data-view="productos">Productos</button>
+          <button class="tab" data-view="ventas">Ventas del día</button>
+        </nav>
+        <div class="user">
+          <span id="user-email" class="muted"></span>
+          <button id="logout" class="btn ghost">Salir</button>
+        </div>
+      </header>
+
+      <!-- Vista: Venta -->
+      <main id="view-venta" class="view venta">
+        <section class="menu">
+          <div id="categorias" class="chips"></div>
+          <div id="menu-grid" class="grid"></div>
+        </section>
+        <aside class="card ticket">
+          <h2>Orden actual</h2>
+          <ul id="carrito" class="carrito"></ul>
+          <div class="total-row"><span>Total</span><strong id="total">$0.00</strong></div>
+          <label>Método de pago
+            <select id="metodo">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button id="vaciar" class="btn ghost">Vaciar</button>
+            <button id="cobrar" class="btn primary">Cobrar</button>
+          </div>
+        </aside>
+      </main>
+
+      <!-- Vista: Productos -->
+      <main id="view-productos" class="view hidden">
+        <form id="producto-form" class="card producto-form">
+          <h2>Agregar producto</h2>
+          <input name="nombre" placeholder="Nombre (ej. Taco de pastor)" required maxlength="80" />
+          <input name="precio" type="number" min="0" step="0.5" placeholder="Precio" required />
+          <input name="categoria" placeholder="Categoría (ej. Tacos)" list="lista-categorias" maxlength="40" />
+          <datalist id="lista-categorias"></datalist>
+          <button type="submit" class="btn primary">Agregar</button>
+        </form>
+        <div class="card">
+          <h2>Menú</h2>
+          <table class="tabla">
+            <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th></th></tr></thead>
+            <tbody id="productos-tbody"></tbody>
+          </table>
+        </div>
+      </main>
+
+      <!-- Vista: Ventas del día -->
+      <main id="view-ventas" class="view hidden">
+        <div class="card">
+          <div class="ventas-header">
+            <h2>Ventas de hoy</h2>
+            <div class="resumen" id="resumen"></div>
+          </div>
+          <ul id="ventas-lista" class="ventas-lista"></ul>
+        </div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
