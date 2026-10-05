@@ -36,3 +36,9 @@ El esquema está en `supabase/migrations/` (ya aplicado al proyecto):
 | `venta_items` | Productos de cada venta; guarda nombre y precio del momento, así borrar un producto no altera el historial |
 
 Las ventas se registran con la función `registrar_venta`, que toma los precios directamente de la tabla `productos` para que el total no se pueda alterar desde el navegador. Todas las tablas tienen Row Level Security activado.
+
+## Capturas
+
+| Venta | Productos | Ventas del día |
+| --- | --- | --- |
+| ![Venta](capturas/2-venta.png) | ![Productos](capturas/3-productos.png) | ![Ventas del día](capturas/4-ventas-del-dia.png) |
