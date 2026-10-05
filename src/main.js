@@ -10,6 +10,7 @@ const estado = {
   carrito: new Map(), // producto_id -> { producto, cantidad }
   categoria: 'Todas',
   creandoClave: false, // sesión abierta desde un enlace de invitación o recuperación
+  rol: null, // 'pendiente' | 'empleado' | 'admin' del usuario con sesión
   editando: null, // id del producto que se está editando en la tabla
 }
 
@@ -36,28 +37,107 @@ async function iniciar() {
   mostrarSesion(data.session)
   supabase.auth.onAuthStateChange((evento, session) => {
     if (evento === 'PASSWORD_RECOVERY') estado.creandoClave = true
-    mostrarSesion(session)
+    // Fuera del callback: consultar Supabase dentro de él puede bloquear la sesión
+    setTimeout(() => mostrarSesion(session), 0)
   })
 }
 
+const PANTALLAS = ['login', 'nueva-clave', 'pendiente', 'app']
 let sesionActiva // undefined hasta la primera llamada, para que siempre se pinte una pantalla
-function mostrarSesion(session) {
-  const usuario = session?.user?.id ?? null
-  const pantalla = !session ? 'login' : estado.creandoClave ? 'nueva-clave' : 'app'
-  if (`${usuario}:${pantalla}` === sesionActiva) return
-  sesionActiva = `${usuario}:${pantalla}`
-  $('#login').classList.toggle('hidden', pantalla !== 'login')
-  $('#nueva-clave').classList.toggle('hidden', pantalla !== 'nueva-clave')
-  $('#app').classList.toggle('hidden', pantalla !== 'app')
+let turnoSesion = 0
+
+async function obtenerRol(usuarioId) {
+  const { data, error } = await supabase.from('perfiles').select('rol').eq('id', usuarioId).maybeSingle()
+  if (error) toast('No se pudo verificar tu cuenta', 'error')
+  return data?.rol ?? 'pendiente'
+}
+
+async function mostrarSesion(session, { forzar = false } = {}) {
+  const turno = ++turnoSesion
+  let pantalla = 'login'
+  let rol = null
+  if (session && estado.creandoClave) pantalla = 'nueva-clave'
+  else if (session) {
+    rol = await obtenerRol(session.user.id)
+    if (turno !== turnoSesion) return // llegó otro cambio de sesión mientras tanto
+    pantalla = rol === 'empleado' || rol === 'admin' ? 'app' : 'pendiente'
+  }
+
+  const clave = `${session?.user?.id ?? null}:${pantalla}:${rol}`
+  if (clave === sesionActiva && !forzar) return
+  sesionActiva = clave
+  estado.rol = rol
+  for (const p of PANTALLAS) $(`#${p}`).classList.toggle('hidden', p !== pantalla)
+
   if (pantalla === 'nueva-clave') {
     $('#nueva-clave-email').textContent = session.user.email
+  } else if (pantalla === 'pendiente') {
+    $('#pendiente-email').textContent = session.user.email
   } else if (pantalla === 'app') {
     $('#user-email').textContent = session.user.email
+    $('#tab-personal').classList.toggle('hidden', rol !== 'admin')
+    irAVista('venta')
     cargarProductos()
+    if (rol === 'admin') cargarPersonal()
   } else {
     estado.carrito.clear()
+    mostrarAcceso('entrar')
   }
 }
+
+function mostrarAcceso(modo) {
+  document.querySelectorAll('.segmento [data-acceso]').forEach((b) => b.classList.toggle('active', b.dataset.acceso === modo))
+  $('#login-form').classList.toggle('hidden', modo !== 'entrar')
+  $('#registro-form').classList.toggle('hidden', modo !== 'registro')
+  $('#registro-listo').classList.toggle('hidden', modo !== 'listo')
+  $('.segmento').classList.toggle('hidden', modo === 'listo')
+}
+
+$('#login').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-acceso]')
+  if (btn) mostrarAcceso(btn.dataset.acceso)
+})
+
+$('#registro-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const form = new FormData(e.target)
+  const nombre = form.get('nombre').trim()
+  const email = form.get('email').trim()
+  const password = form.get('password')
+  $('#registro-error').textContent = ''
+  if (!nombre) return ($('#registro-error').textContent = 'Escribe tu nombre')
+  if (password !== form.get('password2')) return ($('#registro-error').textContent = 'Las contraseñas no coinciden')
+
+  const boton = e.target.querySelector('[type=submit]')
+  boton.disabled = true
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { nombre }, emailRedirectTo: location.origin + location.pathname },
+  })
+  boton.disabled = false
+  if (error) {
+    $('#registro-error').textContent = /registered|exists/i.test(error.message)
+      ? 'Ese correo ya tiene cuenta. Usa "Entrar".'
+      : /password/i.test(error.message)
+        ? 'La contraseña es muy débil. Usa al menos 6 caracteres.'
+        : 'No se pudo crear la cuenta. Intenta en un momento.'
+    return
+  }
+  e.target.reset()
+  // Si Supabase pide confirmar el correo, todavía no hay sesión
+  if (!data.session) {
+    $('#registro-email').textContent = email
+    mostrarAcceso('listo')
+  }
+})
+
+$('#pendiente-revisar').addEventListener('click', async () => {
+  const { data } = await supabase.auth.getSession()
+  await mostrarSesion(data.session, { forzar: true })
+  if (estado.rol === 'pendiente') toast('Tu cuenta sigue pendiente de aprobación')
+})
+$('#pendiente-salir').addEventListener('click', () => supabase.auth.signOut())
 
 $('#login-form').addEventListener('submit', async (e) => {
   e.preventDefault()
@@ -98,17 +178,17 @@ $('#logout').addEventListener('click', () => supabase.auth.signOut())
 
 // ---------- Navegación ----------
 
-document.querySelectorAll('.tab').forEach((tab) =>
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab))
-    document.querySelectorAll('.view').forEach((v) => v.classList.add('hidden'))
-    $(`#view-${tab.dataset.view}`).classList.remove('hidden')
-    if (tab.dataset.view === 'ventas') {
-      cargarVentas(claveDia(new Date()))
-      cargarDiasRecientes()
-    }
-  }),
-)
+function irAVista(vista) {
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === vista))
+  document.querySelectorAll('.view').forEach((v) => v.classList.toggle('hidden', v.id !== `view-${vista}`))
+  if (vista === 'ventas') {
+    cargarVentas(claveDia(new Date()))
+    cargarDiasRecientes()
+  }
+  if (vista === 'personal') cargarPersonal()
+}
+
+document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => irAVista(tab.dataset.view)))
 
 // ---------- Productos ----------
 
@@ -447,6 +527,60 @@ $('#ir-hoy').addEventListener('click', () => cargarVentas(claveDia(new Date())))
 $('#dias-lista').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-dia]')
   if (btn) cargarVentas(btn.dataset.dia)
+})
+
+// ---------- Personal (solo administradores) ----------
+
+const ROLES = { pendiente: 'Pendiente', empleado: 'Empleado', admin: 'Administrador' }
+
+async function cargarPersonal() {
+  const { data, error } = await supabase
+    .from('perfiles')
+    .select('id, email, nombre, rol, created_at')
+    .order('created_at', { ascending: false })
+  if (error) return toast('No se pudo cargar el personal', 'error')
+  const { data: sesion } = await supabase.auth.getSession()
+  const yo = sesion.session?.user.id
+  // Pendientes primero
+  data.sort((a, b) => (a.rol === 'pendiente' ? 0 : 1) - (b.rol === 'pendiente' ? 0 : 1))
+
+  const pendientes = data.filter((p) => p.rol === 'pendiente').length
+  $('#tab-personal').textContent = pendientes ? `Personal (${pendientes})` : 'Personal'
+
+  const acciones = (p) => {
+    if (p.id === yo) return '<span class="muted">(tú)</span>'
+    if (p.rol === 'pendiente') return `<button class="btn primary small" data-rol="empleado" data-id="${p.id}">Aprobar</button>`
+    if (p.rol === 'empleado')
+      return `<button class="btn ghost small" data-rol="admin" data-id="${p.id}">Hacer admin</button>
+              <button class="btn danger small" data-rol="pendiente" data-id="${p.id}">Quitar acceso</button>`
+    return `<button class="btn ghost small" data-rol="empleado" data-id="${p.id}">Quitar admin</button>`
+  }
+  $('#personal-tbody').innerHTML = data
+    .map(
+      (p) => `<tr>
+        <td>${escapar(p.nombre ?? '—')}</td>
+        <td>${escapar(p.email)}</td>
+        <td><span class="tag ${p.rol === 'pendiente' ? 'tag-pendiente' : ''}">${ROLES[p.rol]}</span></td>
+        <td class="right acciones">${acciones(p)}</td>
+      </tr>`,
+    )
+    .join('')
+}
+
+$('#personal-tbody').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-rol]')
+  if (!btn) return
+  const { id, rol } = btn.dataset
+  if (rol === 'pendiente' && !confirm('¿Quitarle el acceso a esta persona?')) return
+  btn.disabled = true
+  // .select() devuelve las filas cambiadas; vacío significa que RLS no lo permitió
+  const { data, error } = await supabase.from('perfiles').update({ rol }).eq('id', id).select('email')
+  if (error || !data.length) {
+    btn.disabled = false
+    return toast('No se pudo cambiar el acceso', 'error')
+  }
+  toast(rol === 'pendiente' ? `Se quitó el acceso a ${data[0].email}` : `${data[0].email} ahora es ${ROLES[rol].toLowerCase()}`)
+  cargarPersonal()
 })
 
 iniciar()

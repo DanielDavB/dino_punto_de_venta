@@ -17,12 +17,13 @@ No necesita compilarse: son archivos estáticos (HTML, CSS y JS) que funcionan t
 
 La URL y la clave publicable de Supabase están en `src/config.js`. La librería de Supabase va incluida en `vendor/supabase.js`; para actualizarla: `npm update @supabase/supabase-js && npm run vendor`.
 
-## Crear usuarios para el personal
+## Cuentas del personal
 
-Solo usuarios con sesión iniciada pueden ver o modificar datos. Para dar acceso a un empleado, en [Supabase → Authentication → Users](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/users):
+Solo el personal **aprobado** puede ver o modificar datos (lo exige la base de datos con Row Level Security, no solo la app).
 
-- **Add user → Send invitation**: le llega un correo; al abrir el enlace entra a la app y crea su contraseña.
-- **Add user → Create new user**: tú escribes correo y contraseña y marcas **Auto Confirm User**.
+- **Crear cuenta**: cualquiera puede registrarse desde la pantalla de acceso (nombre, correo y contraseña). La cuenta queda **pendiente** y solo ve un aviso hasta que un administrador la apruebe.
+- **Pestaña Personal** (solo administradores): lista las cuentas con las pendientes primero; permite **Aprobar**, **Hacer admin**, **Quitar admin** y **Quitar acceso**. Nadie puede cambiar su propio rol.
+- **Invitar** desde [Supabase → Authentication → Users](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/users) (**Add user → Send invitation**): la cuenta entra ya aprobada como empleado y crea su contraseña al abrir el correo.
 
 Si alguien olvida su contraseña, toca **¿Olvidaste tu contraseña?** en la pantalla de acceso y recibe un correo para crear una nueva.
 
@@ -36,6 +37,7 @@ El esquema está en `supabase/migrations/` (ya aplicado al proyecto):
 | --- | --- |
 | `productos` | El menú (nombre, precio, categoría) |
 | `ventas` | Cada venta cobrada (total, método de pago, quién la hizo) |
+| `perfiles` | Una fila por cuenta: nombre, correo y rol (`pendiente`, `empleado` o `admin`) |
 | `venta_items` | Productos de cada venta; guarda nombre y precio del momento, así borrar un producto no altera el historial |
 
 Las ventas se registran con la función `registrar_venta`, que toma los precios directamente de la tabla `productos` para que el total no se pueda alterar desde el navegador. Todas las tablas tienen Row Level Security activado.

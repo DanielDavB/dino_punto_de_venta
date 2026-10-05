@@ -8,17 +8,51 @@
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <!-- Pantalla de acceso -->
+    <!-- Pantalla de acceso: entrar o crear cuenta -->
     <section id="login" class="login hidden">
-      <form id="login-form" class="card login-card">
+      <div class="card login-card">
         <h1>🦖 DinoTacos</h1>
         <p class="muted">Punto de venta</p>
-        <label>Correo <input type="email" name="email" required autocomplete="username" /></label>
-        <label>Contraseña <input type="password" name="password" required autocomplete="current-password" /></label>
-        <button type="submit" class="btn primary">Entrar</button>
-        <p id="login-error" class="error"></p>
-        <button type="button" id="olvide" class="link">¿Olvidaste tu contraseña?</button>
-      </form>
+        <div class="segmento" role="tablist">
+          <button type="button" class="active" data-acceso="entrar" role="tab">Entrar</button>
+          <button type="button" data-acceso="registro" role="tab">Crear cuenta</button>
+        </div>
+
+        <form id="login-form" class="acceso-form">
+          <label>Correo <input type="email" name="email" required autocomplete="username" /></label>
+          <label>Contraseña <input type="password" name="password" required autocomplete="current-password" /></label>
+          <button type="submit" class="btn primary">Entrar</button>
+          <p id="login-error" class="error"></p>
+          <button type="button" id="olvide" class="link">¿Olvidaste tu contraseña?</button>
+        </form>
+
+        <form id="registro-form" class="acceso-form hidden">
+          <label>Nombre <input name="nombre" required maxlength="60" autocomplete="name" /></label>
+          <label>Correo <input type="email" name="email" required autocomplete="username" /></label>
+          <label>Contraseña <input type="password" name="password" required minlength="6" autocomplete="new-password" /></label>
+          <label>Repítela <input type="password" name="password2" required minlength="6" autocomplete="new-password" /></label>
+          <button type="submit" class="btn primary">Crear cuenta</button>
+          <p id="registro-error" class="error"></p>
+          <p class="muted nota">Un administrador debe aprobar tu cuenta antes de que puedas usar el punto de venta.</p>
+        </form>
+
+        <div id="registro-listo" class="hidden">
+          <p>✅ Cuenta creada.</p>
+          <p class="muted">Te enviamos un correo a <strong id="registro-email"></strong>. Ábrelo para confirmar tu cuenta; después un administrador debe aprobarla.</p>
+          <button type="button" class="btn ghost" data-acceso="entrar">Volver a Entrar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cuenta creada pero todavía no aprobada -->
+    <section id="pendiente" class="login hidden">
+      <div class="card login-card">
+        <h1>🦖 DinoTacos</h1>
+        <p><strong>Tu cuenta está pendiente de aprobación</strong></p>
+        <p class="muted">Pídele a un administrador que apruebe a <strong id="pendiente-email"></strong>. Cuando lo haga, toca "Revisar de nuevo".</p>
+        <button type="button" id="pendiente-revisar" class="btn primary">Revisar de nuevo</button>
+        <button type="button" id="pendiente-salir" class="btn ghost">Salir</button>
+      </div>
     </section>
 
     <!-- Crear contraseña (al entrar con una invitación o para recuperarla) -->
@@ -41,6 +75,7 @@
           <button class="tab active" data-view="venta">Venta</button>
           <button class="tab" data-view="productos">Productos</button>
           <button class="tab" data-view="ventas">Ventas</button>
+          <button class="tab hidden" data-view="personal" id="tab-personal">Personal</button>
         </nav>
         <div class="user">
           <span id="user-email" class="muted"></span>
@@ -109,6 +144,18 @@
         <div class="card">
           <h2>Últimos 30 días</h2>
           <ul id="dias-lista" class="dias-lista"></ul>
+        </div>
+      </main>
+
+      <!-- Vista: Personal (solo administradores) -->
+      <main id="view-personal" class="view hidden">
+        <div class="card">
+          <h2>Personal</h2>
+          <p class="muted">Las cuentas nuevas quedan pendientes hasta que las apruebes. Los administradores además pueden aprobar a otros.</p>
+          <table class="tabla">
+            <thead><tr><th>Nombre</th><th>Correo</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="personal-tbody"></tbody>
+          </table>
         </div>
       </main>
     </div>

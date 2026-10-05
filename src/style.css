@@ -61,6 +61,12 @@ label { display: block; font-size: 0.9rem; color: var(--muted); }
 .login { display: grid; place-items: center; min-height: 100vh; padding: 16px; }
 .login-card { width: 100%; max-width: 360px; display: grid; gap: 12px; text-align: center; }
 .login-card label { text-align: left; }
+.segmento { display: grid; grid-template-columns: 1fr 1fr; background: #f1f4f1; border-radius: 10px; padding: 4px; gap: 4px; }
+.segmento button { border: none; background: transparent; padding: 8px; border-radius: 8px; font: inherit; font-weight: 600; color: var(--muted); cursor: pointer; }
+.segmento button.active { background: #fff; color: var(--verde-oscuro); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+.acceso-form { display: grid; gap: 12px; }
+.nota { font-size: 0.8rem; margin: 0; }
+.tag.tag-pendiente { background: #fff4e0; color: #9a5b00; }
 .link { background: none; border: none; color: var(--muted); font: inherit; font-size: 0.85rem; text-decoration: underline; cursor: pointer; }
 
 /* Topbar */
