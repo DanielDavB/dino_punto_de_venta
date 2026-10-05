@@ -16,7 +16,15 @@ cp .env.example .env   # ya trae la URL y la clave pública del proyecto
 npm run dev
 ```
 
-Abre http://localhost:5173. Para publicarlo, `npm run build` genera la carpeta `dist/`, que puedes subir a Netlify, Vercel o cualquier hosting estático (configura ahí las mismas variables de `.env`).
+Abre http://localhost:5173.
+
+## Publicar en GitHub Pages
+
+El workflow `.github/workflows/deploy-pages.yml` compila y publica la app en cada push.
+
+1. En GitHub ve a **Settings → Pages** y en **Source** elige **GitHub Actions** (solo una vez).
+2. Haz push, o córrelo a mano en **Actions → Publicar en GitHub Pages → Run workflow**.
+3. La app queda en https://danieldavb.github.io/dino_punto_de_venta/
 
 ## Crear usuarios para el personal
 
