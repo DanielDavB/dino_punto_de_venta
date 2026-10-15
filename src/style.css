@@ -201,3 +201,29 @@ label { display: block; font-size: 0.9rem; color: var(--muted); }
   .producto-form { grid-template-columns: 1fr; }
   .user .muted { display: none; }
 }
+
+/* Cambio en efectivo */
+.pago-efectivo { display: grid; gap: 8px; }
+.billetes { display: flex; flex-wrap: wrap; gap: 6px; }
+.billetes .chip { padding: 4px 12px; }
+.cambio-row { display: flex; justify-content: space-between; font-size: 1.1rem; }
+#cambio.falta { color: var(--rojo); }
+#cambio.ok { color: var(--verde-oscuro); }
+#ultima-venta { text-align: center; }
+#ultima-venta strong { font-size: 1.3rem; }
+
+/* Ventas canceladas */
+.ventas-lista li.cancelada > .venta-top, .ventas-lista li.cancelada > small { opacity: 0.55; }
+.ventas-lista li.cancelada .venta-total { text-decoration: line-through; }
+.tag-cancelada { background: #fdecec; color: var(--rojo); }
+.motivo { color: var(--rojo); font-size: 0.85rem; }
+
+/* Corte de caja */
+.corte-form { display: grid; gap: 10px; max-width: 420px; }
+.corte-fila { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--texto); }
+.corte-fila input { max-width: 150px; margin: 0; text-align: right; }
+#corte-diferencia.cuadra { color: var(--verde-oscuro); }
+#corte-diferencia.falta { color: var(--rojo); }
+#corte-diferencia.sobra { color: var(--naranja); }
+.aviso.alerta { background: #fff4e6; }
+.corte .aviso { margin-bottom: 12px; }

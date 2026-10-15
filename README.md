@@ -4,9 +4,10 @@ Punto de venta sencillo para el restaurante DinoTacos, conectado a su propio pro
 
 ## Qué hace
 
-- **Venta**: tocas productos del menú para agregarlos a la orden, ajustas cantidades con − / +, quitas productos con ✕, eliges método de pago y cobras.
+- **Venta**: tocas productos del menú para agregarlos a la orden, ajustas cantidades con − / +, quitas productos con ✕, eliges método de pago y cobras. En efectivo, escribe con cuánto paga el cliente (o toca Exacto, $50, $100, $200, $500) y la app muestra el cambio; no deja cobrar si el pago no alcanza.
 - **Productos**: agregas productos al menú (nombre, precio, categoría) y los eliminas.
-- **Ventas**: historial por día guardado en Supabase. Muestra las ventas de hoy con su detalle, el total y el desglose por método de pago; con ◀ ▶ o el calendario consultas cualquier día anterior, y la lista "Últimos 30 días" muestra el total de cada día (tócalo para ver su detalle).
+- **Ventas**: historial por día guardado en Supabase. Un administrador puede **cancelar** una venta escribiendo el motivo: no se borra, queda marcada y deja de contar en los totales. Muestra las ventas de hoy con su detalle, el total y el desglose por método de pago; con ◀ ▶ o el calendario consultas cualquier día anterior, y la lista "Últimos 30 días" muestra el total de cada día (tócalo para ver su detalle).
+- **Corte de caja** (en la pestaña Ventas): al cerrar el día capturas el fondo inicial y el efectivo contado; la app calcula el efectivo esperado (fondo + ventas en efectivo no canceladas) y la diferencia (cuadra, faltan o sobran). Se guarda un corte por día; si hay cambios en las ventas después, avisa y se puede rehacer.
 
 ## Cómo correrlo
 
@@ -41,10 +42,11 @@ El esquema está en `supabase/migrations/` (ya aplicado al proyecto):
 | --- | --- |
 | `productos` | El menú (nombre, precio, categoría) |
 | `ventas` | Cada venta cobrada (total, método de pago, quién la hizo) |
+| `cortes_caja` | Un corte por día: totales por método de pago, fondo inicial, efectivo esperado, contado y diferencia |
 | `perfiles` | Una fila por cuenta: nombre, correo y rol (`pendiente`, `empleado` o `admin`) |
 | `venta_items` | Productos de cada venta; guarda nombre y precio del momento, así borrar un producto no altera el historial |
 
-Las ventas se registran con la función `registrar_venta`, que toma los precios directamente de la tabla `productos` para que el total no se pueda alterar desde el navegador. Todas las tablas tienen Row Level Security activado.
+Las ventas se registran con la función `registrar_venta` (guarda también `pago_con` y calcula `cambio`), se cancelan con `cancelar_venta` (solo administradores, con motivo) y el corte se guarda con `registrar_corte`, que calcula los totales en la base de datos. `registrar_venta` que toma los precios directamente de la tabla `productos` para que el total no se pueda alterar desde el navegador. Todas las tablas tienen Row Level Security activado.
 
 ## Capturas
 

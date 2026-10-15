@@ -311,6 +311,7 @@ $('#menu-grid').addEventListener('click', (e) => {
   const linea = estado.carrito.get(producto.id)
   if (linea) linea.cantidad++
   else estado.carrito.set(producto.id, { producto, cantidad: 1 })
+  $('#ultima-venta').classList.add('hidden')
   renderCarrito()
 })
 
@@ -443,8 +444,41 @@ function renderCarrito() {
         .join('')
     : '<li class="vacio muted">Toca un producto para agregarlo</li>'
   $('#total').textContent = dinero.format(totalCarrito())
-  $('#cobrar').disabled = lineas.length === 0
+  actualizarCambio()
 }
+
+// Con cuánto paga el cliente (solo efectivo). Vacío = no se calcula cambio.
+function pagoCon() {
+  if ($('#metodo').value !== 'efectivo') return null
+  const valor = $('#pago-con').value.trim()
+  return valor === '' ? null : Number(valor)
+}
+
+function actualizarCambio() {
+  const total = totalCarrito()
+  const pago = pagoCon()
+  const cambio = $('#cambio')
+  $('#pago-efectivo').classList.toggle('hidden', $('#metodo').value !== 'efectivo')
+  cambio.className = ''
+  if (pago === null || estado.carrito.size === 0) cambio.textContent = '—'
+  else if (pago < total) {
+    cambio.textContent = `Faltan ${dinero.format(total - pago)}`
+    cambio.className = 'falta'
+  } else {
+    cambio.textContent = dinero.format(pago - total)
+    cambio.className = 'ok'
+  }
+  $('#cobrar').disabled = estado.carrito.size === 0 || (pago !== null && pago < total)
+}
+
+$('#metodo').addEventListener('change', actualizarCambio)
+$('#pago-con').addEventListener('input', actualizarCambio)
+$('#billetes').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-billete]')
+  if (!btn) return
+  $('#pago-con').value = btn.dataset.billete === 'exacto' ? totalCarrito() : btn.dataset.billete
+  actualizarCambio()
+})
 
 $('#carrito').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-accion]')
@@ -467,12 +501,21 @@ $('#cobrar').addEventListener('click', async () => {
   const btn = $('#cobrar')
   btn.disabled = true
   const items = [...estado.carrito.values()].map(({ producto, cantidad }) => ({ producto_id: producto.id, cantidad }))
-  const { data: ventaId, error } = await supabase.rpc('registrar_venta', { items, metodo: $('#metodo').value })
+  const total = totalCarrito()
+  const pago = pagoCon()
+  const { data: ventaId, error } = await supabase.rpc('registrar_venta', { items, metodo: $('#metodo').value, pago_con: pago })
   if (error) {
-    btn.disabled = false
+    actualizarCambio()
     return toast(`No se pudo registrar la venta: ${error.message}`, 'error')
   }
-  toast(`Venta #${ventaId} registrada · ${dinero.format(totalCarrito())}`)
+  toast(`Venta #${ventaId} registrada · ${dinero.format(total)}`)
+  // El cambio queda a la vista hasta que se empiece la siguiente orden
+  $('#ultima-venta').innerHTML =
+    pago === null
+      ? `Venta #${ventaId} registrada · ${dinero.format(total)}`
+      : `Venta #${ventaId} · pagó con ${dinero.format(pago)}<br />Cambio: <strong>${dinero.format(pago - total)}</strong>`
+  $('#ultima-venta').classList.remove('hidden')
+  $('#pago-con').value = ''
   estado.carrito.clear()
   renderCarrito()
 })
@@ -510,7 +553,7 @@ async function cargarVentas(dia = $('#ventas-fecha').value || claveDia(new Date(
 
   const { data, error } = await supabase
     .from('ventas')
-    .select('id, total, metodo_pago, created_at, venta_items(nombre, cantidad, subtotal)')
+    .select('id, total, metodo_pago, pago_con, cambio, created_at, cancelada_at, motivo_cancelacion, venta_items(nombre, cantidad, subtotal)')
     .gte('created_at', desdeClave(dia).toISOString())
     .lt('created_at', desdeClave(sumarDias(dia, 1)).toISOString())
     .order('created_at', { ascending: false })
@@ -518,26 +561,36 @@ async function cargarVentas(dia = $('#ventas-fecha').value || claveDia(new Date(
   // Evitar pintar una respuesta vieja si se cambió de día mientras cargaba
   if ($('#ventas-fecha').value !== dia) return
 
-  const total = data.reduce((s, v) => s + Number(v.total), 0)
+  // Las canceladas se muestran pero no cuentan en los totales
+  const validas = data.filter((v) => !v.cancelada_at)
+  const canceladas = data.length - validas.length
+  const total = validas.reduce((s, v) => s + Number(v.total), 0)
   const porMetodo = {}
-  for (const v of data) porMetodo[v.metodo_pago] = (porMetodo[v.metodo_pago] ?? 0) + Number(v.total)
+  for (const v of validas) porMetodo[v.metodo_pago] = (porMetodo[v.metodo_pago] ?? 0) + Number(v.total)
   $('#resumen').innerHTML = `
-    <span>${data.length} ${data.length === 1 ? 'venta' : 'ventas'}</span>
+    <span>${validas.length} ${validas.length === 1 ? 'venta' : 'ventas'}</span>
     <strong>${dinero.format(total)}</strong>
     ${Object.entries(porMetodo)
       .map(([m, t]) => `<span class="tag">${escapar(m)} ${dinero.format(t)}</span>`)
-      .join('')}`
+      .join('')}
+    ${canceladas ? `<span class="tag tag-cancelada">${canceladas} ${canceladas === 1 ? 'cancelada' : 'canceladas'}</span>` : ''}`
+  pintarCorte(dia, porMetodo.efectivo ?? 0)
   $('#ventas-lista').innerHTML = data.length
     ? data
         .map(
-          (v) => `<li>
+          (v) => `<li class="${v.cancelada_at ? 'cancelada' : ''}">
             <div class="venta-top">
               <strong>#${v.id}</strong>
               <span class="muted">${new Date(v.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
               <span class="tag">${escapar(v.metodo_pago)}</span>
-              <strong class="right">${dinero.format(Number(v.total))}</strong>
+              ${v.cancelada_at ? '<span class="tag tag-cancelada">Cancelada</span>' : ''}
+              <strong class="right venta-total">${dinero.format(Number(v.total))}</strong>
+              ${estado.rol === 'admin' && !v.cancelada_at ? `<button class="btn danger small" data-cancelar="${v.id}">Cancelar</button>` : ''}
             </div>
-            <small class="muted">${v.venta_items.map((i) => `${i.cantidad}× ${escapar(i.nombre)}`).join(', ')}</small>
+            <small class="muted">${v.venta_items.map((i) => `${i.cantidad}× ${escapar(i.nombre)}`).join(', ')}${
+              v.pago_con !== null ? ` · pagó con ${dinero.format(Number(v.pago_con))}, cambio ${dinero.format(Number(v.cambio))}` : ''
+            }</small>
+            ${v.cancelada_at ? `<small class="motivo">Motivo: ${escapar(v.motivo_cancelacion)}</small>` : ''}
           </li>`,
         )
         .join('')
@@ -549,6 +602,7 @@ async function cargarDiasRecientes() {
   const { data, error } = await supabase
     .from('ventas')
     .select('total, created_at')
+    .is('cancelada_at', null)
     .gte('created_at', desdeClave(desde).toISOString())
     .order('created_at', { ascending: false })
   if (error) return toast('No se pudo cargar el historial', 'error')
@@ -584,6 +638,96 @@ $('#ventas-fecha').addEventListener('change', (e) => e.target.value && cargarVen
 $('#dia-anterior').addEventListener('click', () => cargarVentas(sumarDias($('#ventas-fecha').value, -1)))
 $('#dia-siguiente').addEventListener('click', () => cargarVentas(sumarDias($('#ventas-fecha').value, 1)))
 $('#ir-hoy').addEventListener('click', () => cargarVentas(claveDia(new Date())))
+$('#ventas-lista').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-cancelar]')
+  if (!btn) return
+  const motivo = prompt(`¿Por qué se cancela la venta #${btn.dataset.cancelar}?`)
+  if (motivo === null) return
+  if (!motivo.trim()) return toast('Escribe el motivo para cancelar la venta', 'error')
+  btn.disabled = true
+  const { error } = await supabase.rpc('cancelar_venta', { venta_id: Number(btn.dataset.cancelar), motivo })
+  if (error) {
+    btn.disabled = false
+    return toast(`No se pudo cancelar: ${error.message}`, 'error')
+  }
+  toast(`Venta #${btn.dataset.cancelar} cancelada`)
+  cargarVentas()
+  cargarDiasRecientes()
+})
+
+// ---------- Corte de caja ----------
+
+const zonaHoraria = Intl.DateTimeFormat().resolvedOptions().timeZone
+let corteDia = { dia: null, efectivo: 0 } // día que muestra la tarjeta y sus ventas en efectivo
+
+async function pintarCorte(dia, efectivo) {
+  corteDia = { dia, efectivo }
+  $('#corte-titulo').textContent = `Corte de caja de ${nombreDia(dia)}`
+  $('#corte-efectivo').textContent = dinero.format(efectivo)
+  const form = $('#corte-form')
+  const { data: corte, error } = await supabase.from('cortes_caja').select('*').eq('dia', dia).maybeSingle()
+  if (error) return toast('No se pudo cargar el corte de caja', 'error')
+  if (corteDia.dia !== dia) return // se cambió de día mientras cargaba
+
+  const aviso = $('#corte-guardado')
+  if (corte) {
+    const dif = Number(corte.diferencia)
+    const cambiaron = Math.round(Number(corte.ventas_efectivo) * 100) !== Math.round(efectivo * 100)
+    aviso.innerHTML = `<p>✅ Corte guardado por ${escapar(corte.creado_por_email ?? 'alguien')} a las ${new Date(corte.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}:
+      contado ${dinero.format(Number(corte.efectivo_contado))} de ${dinero.format(Number(corte.efectivo_esperado))} esperados
+      (${dif === 0 ? 'cuadra' : dif < 0 ? `faltan ${dinero.format(-dif)}` : `sobran ${dinero.format(dif)}`}).</p>
+      ${corte.notas ? `<p class="muted">Notas: ${escapar(corte.notas)}</p>` : ''}
+      ${cambiaron ? '<p><strong>Las ventas en efectivo cambiaron después del corte. Vuelve a contar y rehazlo.</strong></p>' : ''}`
+    aviso.classList.toggle('alerta', cambiaron || dif !== 0)
+    aviso.classList.remove('hidden')
+    form.fondo.value = Number(corte.fondo_inicial)
+    form.contado.value = Number(corte.efectivo_contado)
+    form.notas.value = corte.notas ?? ''
+    $('#corte-guardar').textContent = 'Rehacer corte'
+  } else {
+    aviso.classList.add('hidden')
+    form.reset()
+    $('#corte-guardar').textContent = 'Guardar corte'
+  }
+  calcularCorte()
+}
+
+function calcularCorte() {
+  const form = $('#corte-form')
+  const esperado = Number(form.fondo.value || 0) + corteDia.efectivo
+  $('#corte-esperado').textContent = dinero.format(esperado)
+  const el = $('#corte-diferencia')
+  if (form.contado.value === '') {
+    el.textContent = '—'
+    el.className = ''
+    return
+  }
+  const dif = Math.round((Number(form.contado.value) - esperado) * 100) / 100
+  el.textContent = dif === 0 ? 'Cuadra' : dif < 0 ? `Faltan ${dinero.format(-dif)}` : `Sobran ${dinero.format(dif)}`
+  el.className = dif === 0 ? 'cuadra' : dif < 0 ? 'falta' : 'sobra'
+}
+
+$('#corte-form').addEventListener('input', calcularCorte)
+
+$('#corte-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const form = e.target
+  const boton = $('#corte-guardar')
+  boton.disabled = true
+  const { data: corte, error } = await supabase.rpc('registrar_corte', {
+    dia: corteDia.dia,
+    zona: zonaHoraria,
+    efectivo_contado: Number(form.contado.value),
+    fondo_inicial: Number(form.fondo.value || 0),
+    notas: form.notas.value,
+  })
+  boton.disabled = false
+  if (error) return toast(`No se pudo guardar el corte: ${error.message}`, 'error')
+  const dif = Number(corte.diferencia)
+  toast(dif === 0 ? 'Corte guardado: la caja cuadra' : `Corte guardado: ${dif < 0 ? 'faltan' : 'sobran'} ${dinero.format(Math.abs(dif))}`, dif < 0 ? 'error' : 'ok')
+  pintarCorte(corteDia.dia, corteDia.efectivo)
+})
+
 $('#dias-lista').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-dia]')
   if (btn) cargarVentas(btn.dataset.dia)

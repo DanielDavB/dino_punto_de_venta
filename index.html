@@ -117,6 +117,20 @@
               <option value="transferencia">Transferencia</option>
             </select>
           </label>
+          <div id="pago-efectivo" class="pago-efectivo">
+            <label>Paga con
+              <input type="number" id="pago-con" min="0" step="0.5" inputmode="decimal" placeholder="Opcional" />
+            </label>
+            <div class="billetes" id="billetes">
+              <button type="button" class="chip" data-billete="exacto">Exacto</button>
+              <button type="button" class="chip" data-billete="50">$50</button>
+              <button type="button" class="chip" data-billete="100">$100</button>
+              <button type="button" class="chip" data-billete="200">$200</button>
+              <button type="button" class="chip" data-billete="500">$500</button>
+            </div>
+            <div class="cambio-row"><span>Cambio</span><strong id="cambio">—</strong></div>
+          </div>
+          <div id="ultima-venta" class="aviso hidden"></div>
           <div class="actions">
             <button id="vaciar" class="btn ghost">Vaciar</button>
             <button id="cobrar" class="btn primary">Cobrar</button>
@@ -157,6 +171,23 @@
           </div>
           <div class="resumen" id="resumen"></div>
           <ul id="ventas-lista" class="ventas-lista"></ul>
+        </div>
+        <div class="card corte" id="corte">
+          <h2 id="corte-titulo">Corte de caja</h2>
+          <div id="corte-guardado" class="aviso hidden"></div>
+          <form id="corte-form" class="corte-form">
+            <div class="corte-fila"><span>Ventas en efectivo</span><strong id="corte-efectivo">$0.00</strong></div>
+            <label class="corte-fila"><span>Fondo inicial en caja</span>
+              <input type="number" name="fondo" min="0" step="0.5" inputmode="decimal" value="0" required />
+            </label>
+            <div class="corte-fila"><span>Efectivo esperado</span><strong id="corte-esperado">$0.00</strong></div>
+            <label class="corte-fila"><span>Efectivo contado</span>
+              <input type="number" name="contado" min="0" step="0.5" inputmode="decimal" placeholder="¿Cuánto hay?" required />
+            </label>
+            <div class="corte-fila"><span>Diferencia</span><strong id="corte-diferencia">—</strong></div>
+            <label>Notas <input name="notas" maxlength="200" placeholder="Opcional" /></label>
+            <button type="submit" class="btn primary" id="corte-guardar">Guardar corte</button>
+          </form>
         </div>
         <div class="card">
           <h2>Últimos 30 días</h2>
