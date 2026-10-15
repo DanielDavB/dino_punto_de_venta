@@ -36,7 +36,10 @@ jobs:
       - run: mkdir _site && cp -r index.html src vendor _site/
       # Cada publicación pide CSS y JS nuevos (?v=<commit>) para que el navegador
       # no mezcle archivos guardados de una versión anterior con el HTML nuevo
-      - run: sed -i "s/?v=[0-9a-z]*/?v=${GITHUB_SHA::8}/g" _site/index.html && grep -n '?v=' _site/index.html
+      - run: |
+          sed -i "s/?v=[0-9a-z]*/?v=${GITHUB_SHA::8}/g" _site/index.html
+          sed -i -E "s#(from '\.{1,2}/[^'?]+\.js)'#\1?v=${GITHUB_SHA::8}'#g" _site/src/*.js
+          grep -n '?v=' _site/index.html _site/src/*.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

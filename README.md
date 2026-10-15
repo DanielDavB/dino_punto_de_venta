@@ -1,6 +1,6 @@
 # 🦖 DinoTacos · Punto de venta
 
-Punto de venta sencillo para el restaurante DinoTacos, conectado a su propio proyecto de Supabase (`dinotacos`, ref `vkiixgxhmqdzibylnxyy`).
+Punto de venta sencillo para el restaurante DinoTacos, conectado a su propio proyecto de Supabase (`dinotacos`, ref `ysnuuvnhyxoqgsdmtpoe`).
 
 ## Qué hace
 
@@ -23,20 +23,21 @@ La URL y la clave publicable de Supabase están en `src/config.js`. La librería
 Solo el personal **aprobado** puede ver o modificar datos (lo exige la base de datos con Row Level Security, no solo la app).
 
 - **Crear cuenta**: cualquiera puede registrarse desde la pantalla de acceso (nombre, correo y contraseña). La cuenta queda **pendiente** y solo ve un aviso hasta que un administrador la apruebe.
+- **Primer administrador**: como toda cuenta nueva queda pendiente, el primer admin se asigna desde Supabase (SQL Editor): `update public.perfiles set rol = 'admin' where email = 'tu@correo.com';`. Después, los admins aprueban a los demás desde la app.
 - **Pestaña Personal** (solo administradores): lista las cuentas con las pendientes primero; permite **Aprobar**, **Hacer admin**, **Quitar admin** y **Quitar acceso**. Nadie puede cambiar su propio rol.
-- **Invitar** desde [Supabase → Authentication → Users](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/users) (**Add user → Send invitation**): la cuenta entra ya aprobada como empleado y crea su contraseña al abrir el correo.
+- **Invitar** desde [Supabase → Authentication → Users](https://supabase.com/dashboard/project/ysnuuvnhyxoqgsdmtpoe/auth/users) (**Add user → Send invitation**): la cuenta entra ya aprobada como empleado y crea su contraseña al abrir el correo.
 
 Si alguien olvida su contraseña, toca **¿Olvidaste tu contraseña?** en la pantalla de acceso. Se abre la sección **Recuperar contraseña**: escribe su correo y recibe un enlace que lo lleva a crear una contraseña nueva.
 
 - Solo sirve el enlace del **correo más reciente**: cada correo nuevo invalida el anterior. Por eso el botón espera 60 segundos entre envíos.
 - Si el enlace caducó o ya se usó, la app regresa a **Recuperar contraseña** para pedir otro.
-- El servicio de correo incluido en Supabase manda muy pocos correos por hora y para todo el proyecto. Si el personal va a usarlo seguido, configura un SMTP propio en [Authentication → Emails → SMTP Settings](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/smtp).
+- El servicio de correo incluido en Supabase manda muy pocos correos por hora y para todo el proyecto. Si el personal va a usarlo seguido, configura un SMTP propio en [Authentication → Emails → SMTP Settings](https://supabase.com/dashboard/project/ysnuuvnhyxoqgsdmtpoe/auth/smtp).
 
-Para que los enlaces de los correos abran la app, en [Authentication → URL Configuration](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/url-configuration) la **Site URL** debe ser `https://danieldavb.github.io/dino_punto_de_venta/` y esa misma dirección debe estar en **Redirect URLs**.
+Para que los enlaces de los correos abran la app, en [Authentication → URL Configuration](https://supabase.com/dashboard/project/ysnuuvnhyxoqgsdmtpoe/auth/url-configuration) la **Site URL** debe ser `https://danieldavb.github.io/dino_punto_de_venta/` y esa misma dirección debe estar en **Redirect URLs**.
 
 ## Base de datos
 
-El esquema está en `supabase/migrations/` (ya aplicado al proyecto):
+Todo el esquema está en un solo archivo, `supabase/migrations/20261015010000_esquema_dinotacos.sql` (ya aplicado al proyecto). Para montar la base de datos en otro proyecto de Supabase basta con ejecutarlo y cambiar `src/config.js`.
 
 | Tabla | Para qué |
 | --- | --- |
