@@ -177,7 +177,7 @@ label { display: block; font-size: 0.9rem; color: var(--muted); }
 .dia-nombre::first-letter { text-transform: uppercase; }
 .ventas-lista { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .ventas-lista li { padding: 10px 0; border-bottom: 1px solid var(--borde); display: grid; gap: 4px; }
-.venta-top { display: flex; gap: 10px; align-items: center; }
+.venta-top { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
 
 /* Toast */
 .toast {
@@ -260,3 +260,25 @@ label { display: block; font-size: 0.9rem; color: var(--muted); }
 #corte-diferencia.sobra { color: var(--naranja); }
 .aviso.alerta { background: #fff4e6; }
 .corte .aviso { margin-bottom: 12px; }
+
+/* Título de Ventas como selector: del día o del mes */
+.titulo-select {
+  width: auto;
+  margin: 0;
+  padding: 4px 32px 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--texto);
+  background: #f1f4f1 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23237a34' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 10px center;
+  appearance: none;
+  cursor: pointer;
+}
+.titulo-select:hover, .titulo-select:focus { border-color: var(--verde); outline: none; }
+.mes-dias { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+.ventas-lista li.mes-dia, .ventas-lista li.mes-dias-titulo { padding: 0; border: none; }
+.ventas-lista li.mes-dias-titulo { font-size: 0.85rem; }
+
+/* Que el contenido nunca empuje las tarjetas más allá de la pantalla */
+.view > *, .ventas-vista > * { min-width: 0; }

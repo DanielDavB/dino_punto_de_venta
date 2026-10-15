@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DinoTacos · Punto de venta</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦖</text></svg>" />
-    <link rel="stylesheet" href="./src/style.css?v=3" />
+    <link rel="stylesheet" href="./src/style.css?v=5" />
   </head>
   <body>
     <!-- Pantalla de acceso: entrar o crear cuenta -->
@@ -140,11 +140,15 @@
       <main id="view-ventas" class="view ventas-vista hidden">
         <div class="card">
           <div class="ventas-header">
-            <h2 id="ventas-titulo">Ventas de hoy</h2>
+            <select id="ventas-periodo" class="titulo-select" aria-label="Periodo">
+              <option value="dia">Ventas de hoy</option>
+              <option value="mes">Ventas del mes</option>
+            </select>
             <div class="fecha-nav">
-              <button class="btn ghost small" id="dia-anterior" aria-label="Día anterior">◀</button>
+              <button class="btn ghost small" id="dia-anterior" aria-label="Anterior">◀</button>
               <input type="date" id="ventas-fecha" aria-label="Fecha" />
-              <button class="btn ghost small" id="dia-siguiente" aria-label="Día siguiente">▶</button>
+              <input type="month" id="ventas-mes" class="hidden" aria-label="Mes" />
+              <button class="btn ghost small" id="dia-siguiente" aria-label="Siguiente">▶</button>
               <button class="btn ghost small" id="ir-hoy">Hoy</button>
             </div>
           </div>
@@ -224,6 +228,6 @@
     </dialog>
 
     <div id="toast" class="toast"></div>
-    <script type="module" src="./src/main.js?v=3"></script>
+    <script type="module" src="./src/main.js?v=5"></script>
   </body>
 </html>

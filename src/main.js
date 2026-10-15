@@ -243,7 +243,7 @@ function irAVista(vista) {
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === vista))
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('hidden', v.id !== `view-${vista}`))
   if (vista === 'ventas') {
-    cargarVentas(claveDia(new Date()))
+    irAHoy()
     cargarDiasRecientes()
   }
   if (vista === 'personal') cargarPersonal()
@@ -620,6 +620,126 @@ const nombreDia = (clave) => {
   return desdeClave(clave).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 const DIAS_RECIENTES = 30
+// Para listas: 'Hoy', 'Ayer' o 'Lun 12 oct'
+const nombreDiaCorto = (clave) => {
+  const nombre = nombreDia(clave)
+  if (nombre === 'hoy' || nombre === 'ayer') return nombre
+  const fecha = desdeClave(clave)
+  const semana = fecha.toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '')
+  const mes = fecha.toLocaleDateString('es-MX', { month: 'short' }).replace('.', '')
+  return `${semana} ${fecha.getDate()} ${mes}`
+}
+
+const claveMes = (fecha) => `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`
+const desdeMes = (clave) => {
+  const [a, m] = clave.split('-').map(Number)
+  return new Date(a, m - 1, 1)
+}
+const sumarMeses = (clave, n) => {
+  const fecha = desdeMes(clave)
+  fecha.setMonth(fecha.getMonth() + n)
+  return claveMes(fecha)
+}
+const etiquetaDia = (clave) => {
+  const nombre = nombreDia(clave)
+  if (nombre === 'hoy' || nombre === 'ayer') return `Ventas de ${nombre}`
+  return `Ventas del ${desdeClave(clave).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}`
+}
+const etiquetaMes = (clave) =>
+  clave === claveMes(new Date())
+    ? 'Ventas del mes'
+    : `Ventas de ${desdeMes(clave).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}`
+
+// Supabase devuelve como máximo 1000 filas por consulta: se piden por partes
+async function traerTodas(consulta) {
+  const filas = []
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await consulta().range(desde, desde + 999)
+    if (error) return { data: null, error }
+    filas.push(...data)
+    if (data.length < 1000) return { data: filas, error: null }
+  }
+}
+
+const periodo = () => $('#ventas-periodo').value
+
+function mostrarControlesPeriodo() {
+  const mes = periodo() === 'mes'
+  $('#ventas-fecha').classList.toggle('hidden', mes)
+  $('#ventas-mes').classList.toggle('hidden', !mes)
+  $('#corte').classList.toggle('hidden', mes) // el corte es por día
+}
+
+function irAHoy() {
+  mostrarControlesPeriodo()
+  if (periodo() === 'mes') cargarMes(claveMes(new Date()))
+  else cargarVentas(claveDia(new Date()))
+}
+
+function recargarPeriodo() {
+  if (periodo() === 'mes') cargarMes()
+  else cargarVentas()
+}
+
+async function cargarMes(mes = $('#ventas-mes').value || claveMes(new Date())) {
+  const actual = claveMes(new Date())
+  if (mes > actual) mes = actual
+  $('#ventas-mes').value = mes
+  $('#ventas-mes').max = actual
+  $('#dia-siguiente').disabled = mes >= actual
+  $('#ventas-periodo').options[1].textContent = etiquetaMes(mes)
+
+  const { data, error } = await traerTodas(() =>
+    supabase
+      .from('ventas')
+      .select('total, metodo_pago, created_at, cancelada_at')
+      .gte('created_at', desdeMes(mes).toISOString())
+      .lt('created_at', desdeMes(sumarMeses(mes, 1)).toISOString())
+      .order('created_at', { ascending: false }),
+  )
+  if (error) return toast('No se pudieron cargar las ventas del mes', 'error')
+  if (periodo() !== 'mes' || $('#ventas-mes').value !== mes) return // cambió mientras cargaba
+
+  const validas = data.filter((v) => !v.cancelada_at)
+  const canceladas = data.length - validas.length
+  const total = validas.reduce((s, v) => s + Number(v.total), 0)
+  const porMetodo = {}
+  const dias = new Map() // 'YYYY-MM-DD' -> { ventas, total }, del más reciente al más viejo
+  for (const v of validas) {
+    porMetodo[v.metodo_pago] = (porMetodo[v.metodo_pago] ?? 0) + Number(v.total)
+    const clave = claveDia(new Date(v.created_at))
+    const d = dias.get(clave) ?? { ventas: 0, total: 0 }
+    d.ventas++
+    d.total += Number(v.total)
+    dias.set(clave, d)
+  }
+  $('#resumen').innerHTML = `
+    <span>${validas.length} ${validas.length === 1 ? 'venta' : 'ventas'}</span>
+    <strong>${dinero.format(total)}</strong>
+    ${Object.entries(porMetodo)
+      .map(([m, t]) => `<span class="tag">${escapar(m)} ${dinero.format(t)}</span>`)
+      .join('')}
+    ${canceladas ? `<span class="tag tag-cancelada">${canceladas} ${canceladas === 1 ? 'cancelada' : 'canceladas'}</span>` : ''}
+    ${dias.size ? `<span class="muted">${dias.size} ${dias.size === 1 ? 'día' : 'días'} con ventas, promedio ${dinero.format(total / dias.size)} por día</span>` : ''}`
+  $('#ventas-lista').innerHTML = dias.size
+    ? `<li class="mes-dias-titulo muted">Toca un día para ver su detalle</li>` +
+      [...dias]
+        .map(
+          ([clave, d]) => `<li class="mes-dia"><button class="dia" data-dia="${clave}">
+            <span class="dia-nombre">${escapar(nombreDiaCorto(clave))}</span>
+            <span class="muted">${d.ventas} ${d.ventas === 1 ? 'venta' : 'ventas'}</span>
+            <strong>${dinero.format(d.total)}</strong>
+          </button></li>`,
+        )
+        .join('')
+    : '<li class="muted">No hubo ventas este mes.</li>'
+}
+
+function abrirDia(dia) {
+  $('#ventas-periodo').value = 'dia'
+  mostrarControlesPeriodo()
+  cargarVentas(dia)
+}
 
 async function cargarVentas(dia = $('#ventas-fecha').value || claveDia(new Date())) {
   const hoy = claveDia(new Date())
@@ -627,18 +747,20 @@ async function cargarVentas(dia = $('#ventas-fecha').value || claveDia(new Date(
   $('#ventas-fecha').value = dia
   $('#ventas-fecha').max = hoy
   $('#dia-siguiente').disabled = dia >= hoy
-  $('#ventas-titulo').textContent = `Ventas de ${nombreDia(dia)}`
+  $('#ventas-periodo').options[0].textContent = etiquetaDia(dia)
   marcarDiaActivo()
 
-  const { data, error } = await supabase
-    .from('ventas')
-    .select('id, total, metodo_pago, pago_con, cambio, created_at, cancelada_at, motivo_cancelacion, venta_items(nombre, cantidad, subtotal)')
-    .gte('created_at', desdeClave(dia).toISOString())
-    .lt('created_at', desdeClave(sumarDias(dia, 1)).toISOString())
-    .order('created_at', { ascending: false })
+  const { data, error } = await traerTodas(() =>
+    supabase
+      .from('ventas')
+      .select('id, total, metodo_pago, pago_con, cambio, created_at, cancelada_at, motivo_cancelacion, venta_items(nombre, cantidad, subtotal)')
+      .gte('created_at', desdeClave(dia).toISOString())
+      .lt('created_at', desdeClave(sumarDias(dia, 1)).toISOString())
+      .order('created_at', { ascending: false }),
+  )
   if (error) return toast('No se pudieron cargar las ventas', 'error')
-  // Evitar pintar una respuesta vieja si se cambió de día mientras cargaba
-  if ($('#ventas-fecha').value !== dia) return
+  // Evitar pintar una respuesta vieja si se cambió de día o de vista mientras cargaba
+  if (periodo() !== 'dia' || $('#ventas-fecha').value !== dia) return
 
   // Las canceladas se muestran pero no cuentan en los totales
   const validas = data.filter((v) => !v.cancelada_at)
@@ -678,12 +800,14 @@ async function cargarVentas(dia = $('#ventas-fecha').value || claveDia(new Date(
 
 async function cargarDiasRecientes() {
   const desde = sumarDias(claveDia(new Date()), -(DIAS_RECIENTES - 1))
-  const { data, error } = await supabase
-    .from('ventas')
-    .select('total, created_at')
-    .is('cancelada_at', null)
-    .gte('created_at', desdeClave(desde).toISOString())
-    .order('created_at', { ascending: false })
+  const { data, error } = await traerTodas(() =>
+    supabase
+      .from('ventas')
+      .select('total, created_at')
+      .is('cancelada_at', null)
+      .gte('created_at', desdeClave(desde).toISOString())
+      .order('created_at', { ascending: false }),
+  )
   if (error) return toast('No se pudo cargar el historial', 'error')
 
   const dias = new Map() // 'YYYY-MM-DD' -> { ventas, total }, del más reciente al más viejo
@@ -698,7 +822,7 @@ async function cargarDiasRecientes() {
     ? [...dias]
         .map(
           ([clave, d]) => `<li><button class="dia" data-dia="${clave}">
-            <span class="dia-nombre">${escapar(nombreDia(clave))}</span>
+            <span class="dia-nombre">${escapar(nombreDiaCorto(clave))}</span>
             <span class="muted">${d.ventas} ${d.ventas === 1 ? 'venta' : 'ventas'}</span>
             <strong>${dinero.format(d.total)}</strong>
           </button></li>`,
@@ -713,10 +837,25 @@ function marcarDiaActivo() {
   document.querySelectorAll('#dias-lista .dia').forEach((b) => b.classList.toggle('active', b.dataset.dia === dia))
 }
 
+$('#ventas-periodo').addEventListener('change', () => {
+  mostrarControlesPeriodo()
+  // Al pasar a "mes" se abre el mes del día que se estaba viendo, y viceversa
+  if (periodo() === 'mes') cargarMes(($('#ventas-fecha').value || claveDia(new Date())).slice(0, 7))
+  else cargarVentas()
+})
 $('#ventas-fecha').addEventListener('change', (e) => e.target.value && cargarVentas(e.target.value))
-$('#dia-anterior').addEventListener('click', () => cargarVentas(sumarDias($('#ventas-fecha').value, -1)))
-$('#dia-siguiente').addEventListener('click', () => cargarVentas(sumarDias($('#ventas-fecha').value, 1)))
-$('#ir-hoy').addEventListener('click', () => cargarVentas(claveDia(new Date())))
+$('#ventas-mes').addEventListener('change', (e) => e.target.value && cargarMes(e.target.value))
+function moverPeriodo(n) {
+  if (periodo() === 'mes') cargarMes(sumarMeses($('#ventas-mes').value, n))
+  else cargarVentas(sumarDias($('#ventas-fecha').value, n))
+}
+$('#dia-anterior').addEventListener('click', () => moverPeriodo(-1))
+$('#dia-siguiente').addEventListener('click', () => moverPeriodo(1))
+$('#ir-hoy').addEventListener('click', irAHoy)
+$('#ventas-lista').addEventListener('click', (e) => {
+  const btn = e.target.closest('.mes-dia [data-dia]')
+  if (btn) abrirDia(btn.dataset.dia)
+})
 $('#ventas-lista').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-cancelar]')
   if (!btn) return
@@ -730,7 +869,7 @@ $('#ventas-lista').addEventListener('click', async (e) => {
     return toast(`No se pudo cancelar: ${error.message}`, 'error')
   }
   toast(`Venta #${btn.dataset.cancelar} cancelada`)
-  cargarVentas()
+  recargarPeriodo()
   cargarDiasRecientes()
 })
 
@@ -809,7 +948,7 @@ $('#corte-form').addEventListener('submit', async (e) => {
 
 $('#dias-lista').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-dia]')
-  if (btn) cargarVentas(btn.dataset.dia)
+  if (btn) abrirDia(btn.dataset.dia)
 })
 
 // ---------- Personal (solo administradores) ----------
