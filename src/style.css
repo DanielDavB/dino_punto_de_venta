@@ -66,6 +66,9 @@ label { display: block; font-size: 0.9rem; color: var(--muted); }
 .segmento button.active { background: #fff; color: var(--verde-oscuro); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
 .acceso-form { display: grid; gap: 12px; }
 .nota { font-size: 0.8rem; margin: 0; }
+.aviso { background: #eef6ee; border-radius: 8px; padding: 10px 12px; text-align: left; }
+.aviso p { margin: 0 0 6px; }
+.aviso p:last-child { margin: 0; font-size: 0.85rem; }
 .tag.tag-pendiente { background: #fff4e0; color: #9a5b00; }
 .link { background: none; border: none; color: var(--muted); font: inherit; font-size: 0.85rem; text-decoration: underline; cursor: pointer; }
 

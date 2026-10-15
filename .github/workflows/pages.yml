@@ -4,7 +4,7 @@ name: Publicar en GitHub Pages
 # archivos y se publican en un único job (un solo runner = menos espera).
 on:
   push:
-    branches: [claude/github-pages-styles-xk4uib]
+    branches: [claude/github-pages-styles-xk4uib, claude/practical-meitner-33y8es]
     paths: ['index.html', 'src/**', 'vendor/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 

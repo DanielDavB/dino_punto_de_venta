@@ -10,6 +10,7 @@ const estado = {
   carrito: new Map(), // producto_id -> { producto, cantidad }
   categoria: 'Todas',
   creandoClave: false, // sesión abierta desde un enlace de invitación o recuperación
+  recuperando: false, // sin sesión, en la pantalla "Recuperar contraseña"
   rol: null, // 'pendiente' | 'empleado' | 'admin' del usuario con sesión
   editando: null, // id del producto que se está editando en la tabla
 }
@@ -26,10 +27,12 @@ function toast(msg, tipo = 'ok') {
 
 async function iniciar() {
   if (enlace.error) {
-    $('#login-error').textContent =
+    // Un enlace que ya no sirve lleva directo a pedir uno nuevo
+    irARecuperar(
       enlace.error === 'otp_expired'
-        ? 'El enlace del correo ya caducó o ya se usó. Pide uno nuevo.'
-        : 'No se pudo usar el enlace del correo. Pide uno nuevo.'
+        ? 'Ese enlace ya no sirve: caducó, ya se usó o pediste otro correo después. Pide uno nuevo aquí.'
+        : 'No se pudo usar el enlace del correo. Pide uno nuevo aquí.',
+    )
   }
   // Quien llega desde una invitación o desde "olvidé mi contraseña" debe crear una
   estado.creandoClave = enlace.tipo === 'invite' || enlace.tipo === 'recovery'
@@ -42,7 +45,7 @@ async function iniciar() {
   })
 }
 
-const PANTALLAS = ['login', 'nueva-clave', 'pendiente', 'app']
+const PANTALLAS = ['login', 'recuperar', 'nueva-clave', 'pendiente', 'app']
 let sesionActiva // undefined hasta la primera llamada, para que siempre se pinte una pantalla
 let turnoSesion = 0
 
@@ -54,7 +57,8 @@ async function obtenerRol(usuarioId) {
 
 async function mostrarSesion(session, { forzar = false } = {}) {
   const turno = ++turnoSesion
-  let pantalla = 'login'
+  if (session) estado.recuperando = false
+  let pantalla = estado.recuperando ? 'recuperar' : 'login'
   let rol = null
   if (session && estado.creandoClave) pantalla = 'nueva-clave'
   else if (session) {
@@ -79,7 +83,7 @@ async function mostrarSesion(session, { forzar = false } = {}) {
     irAVista('venta')
     cargarProductos()
     if (rol === 'admin') cargarPersonal()
-  } else {
+  } else if (pantalla === 'login') {
     estado.carrito.clear()
     mostrarAcceso('entrar')
   }
@@ -96,6 +100,12 @@ function mostrarAcceso(modo) {
 $('#login').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-acceso]')
   if (btn) mostrarAcceso(btn.dataset.acceso)
+})
+
+$('#recuperar').addEventListener('click', (e) => {
+  if (!e.target.closest('[data-acceso="entrar"]')) return
+  estado.recuperando = false
+  mostrarSesion(null, { forzar: true })
 })
 
 $('#registro-form').addEventListener('submit', async (e) => {
@@ -150,13 +160,62 @@ $('#login-form').addEventListener('submit', async (e) => {
   if (error) $('#login-error').textContent = 'Correo o contraseña incorrectos'
 })
 
-$('#olvide').addEventListener('click', async () => {
+// ---------- Recuperar contraseña ----------
+
+// Supabase manda pocos correos por hora y cada correo nuevo invalida el enlace del
+// anterior, así que se espera un minuto entre envíos y nunca se mandan dos a la vez.
+const ESPERA_REENVIO = 60
+let enviandoRecuperacion = false
+let reenvioDisponibleEn = 0
+
+function irARecuperar(mensaje = '') {
   const email = $('#login-form [name=email]').value.trim()
-  if (!email) return ($('#login-error').textContent = 'Escribe tu correo y vuelve a tocar "¿Olvidaste tu contraseña?"')
+  if (email) $('#recuperar-form [name=email]').value = email
+  $('#recuperar-error').textContent = mensaje
+  estado.recuperando = true
+  mostrarSesion(null, { forzar: true })
+  $('#recuperar-form [name=email]').focus()
+}
+
+function actualizarBotonRecuperar() {
+  const boton = $('#recuperar-form [type=submit]')
+  const faltan = Math.ceil((reenvioDisponibleEn - Date.now()) / 1000)
+  if (enviandoRecuperacion) {
+    boton.disabled = true
+    boton.textContent = 'Enviando…'
+  } else if (faltan > 0) {
+    boton.disabled = true
+    boton.textContent = `Reenviar en ${faltan} s`
+    setTimeout(actualizarBotonRecuperar, 1000)
+  } else {
+    boton.disabled = false
+    boton.textContent = reenvioDisponibleEn ? 'Reenviar enlace' : 'Enviar enlace'
+  }
+}
+
+$('#olvide').addEventListener('click', () => irARecuperar())
+
+$('#recuperar-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  if (enviandoRecuperacion || Date.now() < reenvioDisponibleEn) return
+  const email = new FormData(e.target).get('email').trim()
+  $('#recuperar-error').textContent = ''
+  enviandoRecuperacion = true
+  actualizarBotonRecuperar()
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })
-  if (error) return ($('#login-error').textContent = 'No se pudo enviar el correo. Intenta en un momento.')
-  $('#login-error').textContent = ''
-  toast('Te enviamos un correo para crear una contraseña nueva')
+  enviandoRecuperacion = false
+  if (error) {
+    $('#recuperar-error').textContent =
+      error.status === 429
+        ? 'Se alcanzó el límite de correos por hora. Espera unos minutos y vuelve a intentarlo.'
+        : 'No se pudo enviar el correo. Revisa el correo e intenta de nuevo.'
+    actualizarBotonRecuperar()
+    return
+  }
+  reenvioDisponibleEn = Date.now() + ESPERA_REENVIO * 1000
+  actualizarBotonRecuperar()
+  $('#recuperar-email').textContent = email
+  $('#recuperar-enviado').classList.remove('hidden')
 })
 
 $('#nueva-clave-form').addEventListener('submit', async (e) => {
@@ -170,6 +229,7 @@ $('#nueva-clave-form').addEventListener('submit', async (e) => {
   if (error) return ($('#nueva-clave-error').textContent = 'No se pudo guardar la contraseña. Usa al menos 6 caracteres.')
   e.target.reset()
   estado.creandoClave = false
+  estado.recuperando = false
   toast('Contraseña guardada')
   mostrarSesion({ user: data.user })
 })

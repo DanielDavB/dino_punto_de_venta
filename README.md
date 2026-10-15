@@ -25,7 +25,11 @@ Solo el personal **aprobado** puede ver o modificar datos (lo exige la base de d
 - **Pestaña Personal** (solo administradores): lista las cuentas con las pendientes primero; permite **Aprobar**, **Hacer admin**, **Quitar admin** y **Quitar acceso**. Nadie puede cambiar su propio rol.
 - **Invitar** desde [Supabase → Authentication → Users](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/users) (**Add user → Send invitation**): la cuenta entra ya aprobada como empleado y crea su contraseña al abrir el correo.
 
-Si alguien olvida su contraseña, toca **¿Olvidaste tu contraseña?** en la pantalla de acceso y recibe un correo para crear una nueva.
+Si alguien olvida su contraseña, toca **¿Olvidaste tu contraseña?** en la pantalla de acceso. Se abre la sección **Recuperar contraseña**: escribe su correo y recibe un enlace que lo lleva a crear una contraseña nueva.
+
+- Solo sirve el enlace del **correo más reciente**: cada correo nuevo invalida el anterior. Por eso el botón espera 60 segundos entre envíos.
+- Si el enlace caducó o ya se usó, la app regresa a **Recuperar contraseña** para pedir otro.
+- El servicio de correo incluido en Supabase manda muy pocos correos por hora y para todo el proyecto. Si el personal va a usarlo seguido, configura un SMTP propio en [Authentication → Emails → SMTP Settings](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/smtp).
 
 Para que los enlaces de los correos abran la app, en [Authentication → URL Configuration](https://supabase.com/dashboard/project/vkiixgxhmqdzibylnxyy/auth/url-configuration) la **Site URL** debe ser `https://danieldavb.github.io/dino_punto_de_venta/` y esa misma dirección debe estar en **Redirect URLs**.
 

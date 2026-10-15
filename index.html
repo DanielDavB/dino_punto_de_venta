@@ -44,6 +44,23 @@
       </div>
     </section>
 
+    <!-- Recuperar contraseña: pide el correo y manda el enlace -->
+    <section id="recuperar" class="login hidden">
+      <form id="recuperar-form" class="card login-card">
+        <h1>🦖 DinoTacos</h1>
+        <p><strong>Recuperar contraseña</strong></p>
+        <p id="recuperar-ayuda" class="muted">Escribe el correo de tu cuenta y te mandaremos un enlace para crear una contraseña nueva.</p>
+        <label>Correo <input type="email" name="email" required autocomplete="username" /></label>
+        <button type="submit" class="btn primary">Enviar enlace</button>
+        <p id="recuperar-error" class="error"></p>
+        <div id="recuperar-enviado" class="aviso hidden">
+          <p>📧 Te enviamos un enlace a <strong id="recuperar-email"></strong>.</p>
+          <p class="muted">Ábrelo en este mismo dispositivo. Si pides otro correo, usa solo el <strong>más reciente</strong>: cada correo nuevo invalida el anterior. Revisa también la carpeta de spam.</p>
+        </div>
+        <button type="button" class="link" data-acceso="entrar">Volver a Entrar</button>
+      </form>
+    </section>
+
     <!-- Cuenta creada pero todavía no aprobada -->
     <section id="pendiente" class="login hidden">
       <div class="card login-card">
