@@ -4,7 +4,7 @@ Punto de venta sencillo para el restaurante DinoTacos, conectado a su propio pro
 
 ## Qué hace
 
-- **Venta**: tocas productos del menú para agregarlos a la orden, ajustas cantidades con − / +, quitas productos con ✕, eliges método de pago y cobras. En efectivo, escribe con cuánto paga el cliente (o toca Exacto, $50, $100, $200, $500) y la app muestra el cambio; no deja cobrar si el pago no alcanza.
+- **Venta**: tocas productos del menú para agregarlos a la orden, ajustas cantidades con − / +, quitas productos con ✕, y tocas **Cobrar**: se abre una ventana con el detalle y el total, eliges efectivo, tarjeta o transferencia y, en efectivo, escribes con cuánto paga el cliente (o tocas Exacto o un billete sugerido). El cambio se calcula mientras escribes, no deja cobrar si el pago no alcanza y al confirmar muestra en grande cuánto cambio entregar.
 - **Productos**: agregas productos al menú (nombre, precio, categoría) y los eliminas.
 - **Ventas**: historial por día guardado en Supabase. Un administrador puede **cancelar** una venta escribiendo el motivo: no se borra, queda marcada y deja de contar en los totales. Muestra las ventas de hoy con su detalle, el total y el desglose por método de pago; con ◀ ▶ o el calendario consultas cualquier día anterior, y la lista "Últimos 30 días" muestra el total de cada día (tócalo para ver su detalle).
 - **Corte de caja** (en la pestaña Ventas): al cerrar el día capturas el fondo inicial y el efectivo contado; la app calcula el efectivo esperado (fondo + ventas en efectivo no canceladas) y la diferencia (cuadra, faltan o sobran). Se guarda un corte por día; si hay cambios en las ventas después, avisa y se puede rehacer.

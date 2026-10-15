@@ -2,6 +2,7 @@ import { supabase, enlace } from './supabase.js'
 
 const $ = (sel) => document.querySelector(sel)
 const dinero = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
+const billete = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
 const escapar = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 
@@ -311,7 +312,6 @@ $('#menu-grid').addEventListener('click', (e) => {
   const linea = estado.carrito.get(producto.id)
   if (linea) linea.cantidad++
   else estado.carrito.set(producto.id, { producto, cantidad: 1 })
-  $('#ultima-venta').classList.add('hidden')
   renderCarrito()
 })
 
@@ -444,41 +444,8 @@ function renderCarrito() {
         .join('')
     : '<li class="vacio muted">Toca un producto para agregarlo</li>'
   $('#total').textContent = dinero.format(totalCarrito())
-  actualizarCambio()
+  $('#cobrar').disabled = lineas.length === 0
 }
-
-// Con cuánto paga el cliente (solo efectivo). Vacío = no se calcula cambio.
-function pagoCon() {
-  if ($('#metodo').value !== 'efectivo') return null
-  const valor = $('#pago-con').value.trim()
-  return valor === '' ? null : Number(valor)
-}
-
-function actualizarCambio() {
-  const total = totalCarrito()
-  const pago = pagoCon()
-  const cambio = $('#cambio')
-  $('#pago-efectivo').classList.toggle('hidden', $('#metodo').value !== 'efectivo')
-  cambio.className = ''
-  if (pago === null || estado.carrito.size === 0) cambio.textContent = '—'
-  else if (pago < total) {
-    cambio.textContent = `Faltan ${dinero.format(total - pago)}`
-    cambio.className = 'falta'
-  } else {
-    cambio.textContent = dinero.format(pago - total)
-    cambio.className = 'ok'
-  }
-  $('#cobrar').disabled = estado.carrito.size === 0 || (pago !== null && pago < total)
-}
-
-$('#metodo').addEventListener('change', actualizarCambio)
-$('#pago-con').addEventListener('input', actualizarCambio)
-$('#billetes').addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-billete]')
-  if (!btn) return
-  $('#pago-con').value = btn.dataset.billete === 'exacto' ? totalCarrito() : btn.dataset.billete
-  actualizarCambio()
-})
 
 $('#carrito').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-accion]')
@@ -496,26 +463,138 @@ $('#vaciar').addEventListener('click', () => {
   renderCarrito()
 })
 
-$('#cobrar').addEventListener('click', async () => {
-  if (estado.carrito.size === 0) return
-  const btn = $('#cobrar')
-  btn.disabled = true
-  const items = [...estado.carrito.values()].map(({ producto, cantidad }) => ({ producto_id: producto.id, cantidad }))
-  const total = totalCarrito()
-  const pago = pagoCon()
-  const { data: ventaId, error } = await supabase.rpc('registrar_venta', { items, metodo: $('#metodo').value, pago_con: pago })
-  if (error) {
-    actualizarCambio()
-    return toast(`No se pudo registrar la venta: ${error.message}`, 'error')
+// ---------- Ventana de cobro ----------
+
+const cobro = {
+  metodo: 'efectivo',
+  total: 0,
+  enviando: false,
+}
+
+// Sugerencias de pago: exacto y los billetes/redondeos que alcanzan para el total
+function sugerenciasPago(total) {
+  const opciones = new Set()
+  for (const paso of [10, 50, 100]) opciones.add(Math.ceil(total / paso) * paso)
+  for (const billete of [200, 500, 1000]) if (billete >= total) opciones.add(billete)
+  opciones.delete(total)
+  return [...opciones].filter((v) => v > total).sort((a, b) => a - b).slice(0, 4)
+}
+
+function pagoCobro() {
+  const valor = $('#cobro-pago').value.trim()
+  return valor === '' ? null : Number(valor)
+}
+
+function elegirMetodo(metodo) {
+  cobro.metodo = metodo
+  document.querySelectorAll('#cobro [data-metodo]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.metodo === metodo)
+    b.setAttribute('aria-checked', b.dataset.metodo === metodo)
+  })
+  $('#cobro-efectivo').classList.toggle('hidden', metodo !== 'efectivo')
+  actualizarCobro()
+  if (metodo === 'efectivo') $('#cobro-pago').focus()
+}
+
+// Se recalcula con cada tecla: muestra el cambio exacto o cuánto falta
+function actualizarCobro() {
+  const pago = pagoCobro()
+  const cambio = $('#cobro-cambio')
+  const etiqueta = $('#cobro-cambio-etiqueta')
+  cambio.className = ''
+  let listo = true
+  if (cobro.metodo === 'efectivo') {
+    if (pago === null) {
+      etiqueta.textContent = 'Cambio'
+      cambio.textContent = '—'
+      listo = false
+    } else if (pago < cobro.total) {
+      etiqueta.textContent = 'Faltan'
+      cambio.textContent = dinero.format(cobro.total - pago)
+      cambio.className = 'falta'
+      listo = false
+    } else {
+      etiqueta.textContent = 'Cambio'
+      cambio.textContent = dinero.format(pago - cobro.total)
+      cambio.className = 'ok'
+    }
   }
-  toast(`Venta #${ventaId} registrada · ${dinero.format(total)}`)
-  // El cambio queda a la vista hasta que se empiece la siguiente orden
-  $('#ultima-venta').innerHTML =
+  $('#cobro-confirmar').disabled = !listo || cobro.enviando
+}
+
+function abrirCobro() {
+  if (estado.carrito.size === 0) return
+  cobro.total = totalCarrito()
+  cobro.enviando = false
+  $('#cobro-items').innerHTML = [...estado.carrito.values()]
+    .map(
+      ({ producto: p, cantidad }) => `<li>
+        <span>${cantidad}× ${escapar(p.nombre)}</span>
+        <span>${dinero.format(p.precio * cantidad)}</span>
+      </li>`,
+    )
+    .join('')
+  $('#cobro-total').textContent = dinero.format(cobro.total)
+  $('#cobro-billetes').innerHTML = [
+    `<button type="button" class="chip" data-pago="${cobro.total}">Exacto</button>`,
+    ...sugerenciasPago(cobro.total).map((v) => `<button type="button" class="chip" data-pago="${v}">${billete.format(v)}</button>`),
+  ].join('')
+  $('#cobro-pago').value = ''
+  $('#cobro-error').textContent = ''
+  $('#cobro-form').classList.remove('hidden')
+  $('#cobro-listo').classList.add('hidden')
+  $('#cobro').showModal()
+  elegirMetodo('efectivo')
+}
+
+function cerrarCobro() {
+  if (!cobro.enviando) $('#cobro').close()
+}
+
+$('#cobrar').addEventListener('click', abrirCobro)
+$('#cobro-cancelar').addEventListener('click', cerrarCobro)
+$('#cobro-nueva').addEventListener('click', cerrarCobro)
+$('#cobro').addEventListener('cancel', (e) => {
+  // Esc: no cerrar mientras se registra la venta
+  if (cobro.enviando) e.preventDefault()
+})
+$('#cobro-pago').addEventListener('input', actualizarCobro)
+$('#cobro').addEventListener('click', (e) => {
+  const metodo = e.target.closest('[data-metodo]')
+  if (metodo) return elegirMetodo(metodo.dataset.metodo)
+  const sugerencia = e.target.closest('[data-pago]')
+  if (sugerencia) {
+    $('#cobro-pago').value = sugerencia.dataset.pago
+    actualizarCobro()
+    $('#cobro-pago').focus()
+  }
+})
+
+$('#cobro-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  if ($('#cobro-confirmar').disabled) return
+  const pago = cobro.metodo === 'efectivo' ? pagoCobro() : null
+  const items = [...estado.carrito.values()].map(({ producto, cantidad }) => ({ producto_id: producto.id, cantidad }))
+  cobro.enviando = true
+  $('#cobro-error').textContent = ''
+  $('#cobro-confirmar').textContent = 'Registrando…'
+  actualizarCobro()
+  const { data: ventaId, error } = await supabase.rpc('registrar_venta', { items, metodo: cobro.metodo, pago_con: pago })
+  cobro.enviando = false
+  $('#cobro-confirmar').textContent = 'Confirmar cobro'
+  actualizarCobro()
+  if (error) return ($('#cobro-error').textContent = `No se pudo registrar la venta: ${error.message}`)
+
+  // Pantalla final: lo importante es cuánto cambio entregar
+  $('#cobro-listo-titulo').textContent = `Venta #${ventaId} registrada`
+  $('#cobro-listo-cambio').innerHTML =
     pago === null
-      ? `Venta #${ventaId} registrada · ${dinero.format(total)}`
-      : `Venta #${ventaId} · pagó con ${dinero.format(pago)}<br />Cambio: <strong>${dinero.format(pago - total)}</strong>`
-  $('#ultima-venta').classList.remove('hidden')
-  $('#pago-con').value = ''
+      ? `<span>Total cobrado</span><strong>${dinero.format(cobro.total)}</strong>`
+      : `<span>Entrega de cambio</span><strong>${dinero.format(pago - cobro.total)}</strong>
+         <small class="muted">Pagó con ${dinero.format(pago)} · total ${dinero.format(cobro.total)}</small>`
+  $('#cobro-form').classList.add('hidden')
+  $('#cobro-listo').classList.remove('hidden')
+  $('#cobro-nueva').focus()
   estado.carrito.clear()
   renderCarrito()
 })

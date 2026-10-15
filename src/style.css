@@ -202,15 +202,48 @@ label { display: block; font-size: 0.9rem; color: var(--muted); }
   .user .muted { display: none; }
 }
 
-/* Cambio en efectivo */
-.pago-efectivo { display: grid; gap: 8px; }
+/* Ventana de cobro */
+.cobro {
+  width: min(440px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  border: none;
+  border-radius: var(--radio);
+  padding: 0;
+  color: var(--texto);
+  background: var(--tarjeta);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+.cobro::backdrop { background: rgba(20, 30, 20, 0.55); }
+.cobro-paso { display: grid; gap: 14px; padding: 20px; }
+.cobro-paso h2 { margin: 0; }
+.cobro-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 30vh; overflow: auto; }
+.cobro-items li { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 6px; border-bottom: 1px dashed var(--borde); }
+.cobro-total { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.4rem; }
+.cobro-total strong { font-size: 1.8rem; }
+.metodos { grid-template-columns: repeat(3, 1fr); }
+.metodos button { font-size: 0.9rem; }
+.cobro-efectivo { display: grid; gap: 10px; }
+.cobro-efectivo input { font-size: 1.5rem; padding: 12px; text-align: right; }
 .billetes { display: flex; flex-wrap: wrap; gap: 6px; }
-.billetes .chip { padding: 4px 12px; }
-.cambio-row { display: flex; justify-content: space-between; font-size: 1.1rem; }
-#cambio.falta { color: var(--rojo); }
-#cambio.ok { color: var(--verde-oscuro); }
-#ultima-venta { text-align: center; }
-#ultima-venta strong { font-size: 1.3rem; }
+.billetes .chip { padding: 6px 14px; font-weight: 600; }
+.cobro-cambio {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  background: #f4f6f1;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 1.2rem;
+}
+.cobro-cambio strong { font-size: 2rem; }
+#cobro-cambio.ok { color: var(--verde-oscuro); }
+#cobro-cambio.falta { color: var(--rojo); }
+.cobro-acciones { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+.cobro-acciones .btn { padding: 14px; font-size: 1.05rem; }
+.cobro-listo { text-align: center; }
+.cobro-check { font-size: 3rem; margin: 0; }
+.cobro-listo-cambio { display: grid; gap: 4px; background: #eef6ee; border-radius: 10px; padding: 16px; }
+.cobro-listo-cambio strong { font-size: 2.6rem; color: var(--verde-oscuro); }
 
 /* Ventas canceladas */
 .ventas-lista li.cancelada > .venta-top, .ventas-lista li.cancelada > small { opacity: 0.55; }

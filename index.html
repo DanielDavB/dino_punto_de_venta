@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DinoTacos · Punto de venta</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦖</text></svg>" />
-    <link rel="stylesheet" href="./src/style.css" />
+    <link rel="stylesheet" href="./src/style.css?v=3" />
   </head>
   <body>
     <!-- Pantalla de acceso: entrar o crear cuenta -->
@@ -110,27 +110,6 @@
           <h2>Orden actual</h2>
           <ul id="carrito" class="carrito"></ul>
           <div class="total-row"><span>Total</span><strong id="total">$0.00</strong></div>
-          <label>Método de pago
-            <select id="metodo">
-              <option value="efectivo">Efectivo</option>
-              <option value="tarjeta">Tarjeta</option>
-              <option value="transferencia">Transferencia</option>
-            </select>
-          </label>
-          <div id="pago-efectivo" class="pago-efectivo">
-            <label>Paga con
-              <input type="number" id="pago-con" min="0" step="0.5" inputmode="decimal" placeholder="Opcional" />
-            </label>
-            <div class="billetes" id="billetes">
-              <button type="button" class="chip" data-billete="exacto">Exacto</button>
-              <button type="button" class="chip" data-billete="50">$50</button>
-              <button type="button" class="chip" data-billete="100">$100</button>
-              <button type="button" class="chip" data-billete="200">$200</button>
-              <button type="button" class="chip" data-billete="500">$500</button>
-            </div>
-            <div class="cambio-row"><span>Cambio</span><strong id="cambio">—</strong></div>
-          </div>
-          <div id="ultima-venta" class="aviso hidden"></div>
           <div class="actions">
             <button id="vaciar" class="btn ghost">Vaciar</button>
             <button id="cobrar" class="btn primary">Cobrar</button>
@@ -208,7 +187,43 @@
       </main>
     </div>
 
+    <!-- Ventana de cobro: resumen, método de pago y cambio en tiempo real -->
+    <dialog id="cobro" class="cobro" aria-labelledby="cobro-titulo">
+      <form id="cobro-form" method="dialog" class="cobro-paso">
+        <h2 id="cobro-titulo">Cobrar orden</h2>
+        <ul id="cobro-items" class="cobro-items"></ul>
+        <div class="cobro-total"><span>Total</span><strong id="cobro-total">$0.00</strong></div>
+
+        <div class="segmento metodos" role="radiogroup" aria-label="Método de pago">
+          <button type="button" data-metodo="efectivo" class="active" role="radio" aria-checked="true">💵 Efectivo</button>
+          <button type="button" data-metodo="tarjeta" role="radio" aria-checked="false">💳 Tarjeta</button>
+          <button type="button" data-metodo="transferencia" role="radio" aria-checked="false">📱 Transferencia</button>
+        </div>
+
+        <div id="cobro-efectivo" class="cobro-efectivo">
+          <label>¿Con cuánto paga?
+            <input type="number" id="cobro-pago" min="0" step="0.5" inputmode="decimal" placeholder="$0.00" autocomplete="off" />
+          </label>
+          <div id="cobro-billetes" class="billetes"></div>
+          <div class="cobro-cambio"><span id="cobro-cambio-etiqueta">Cambio</span><strong id="cobro-cambio">—</strong></div>
+        </div>
+
+        <p id="cobro-error" class="error"></p>
+        <div class="cobro-acciones">
+          <button type="button" class="btn ghost" id="cobro-cancelar">Cancelar</button>
+          <button type="submit" class="btn primary" id="cobro-confirmar">Confirmar cobro</button>
+        </div>
+      </form>
+
+      <div id="cobro-listo" class="cobro-paso cobro-listo hidden">
+        <p class="cobro-check">✅</p>
+        <h2 id="cobro-listo-titulo">Venta registrada</h2>
+        <div id="cobro-listo-cambio" class="cobro-listo-cambio"></div>
+        <button type="button" class="btn primary" id="cobro-nueva">Nueva orden</button>
+      </div>
+    </dialog>
+
     <div id="toast" class="toast"></div>
-    <script type="module" src="./src/main.js"></script>
+    <script type="module" src="./src/main.js?v=3"></script>
   </body>
 </html>
